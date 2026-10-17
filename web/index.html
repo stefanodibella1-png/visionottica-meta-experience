@@ -171,6 +171,10 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .toast{position:fixed;z-index:19;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 84px);max-width:calc(100% - 32px);
   background:rgba(8,14,26,.92);border:1px solid var(--line);border-radius:12px;padding:11px 16px;font-size:15px;color:var(--ink);}
 @media (prefers-reduced-motion:reduce){.gate,.tg::after{transition:none}}
+/* Android WebView: some GPUs mis-draw backdrop blur / zoomed scrollers over the WebGL canvas */
+html.wv *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;}
+html.wv .modal{background:rgba(2,5,10,.9);transform:translateZ(0);}
+html.wv .modal-in{transform:translateZ(0);will-change:transform;}
 </style>
 
 <canvas id="stage" tabindex="-1" aria-label="Showroom 3D VisionOttica"></canvas>
@@ -1910,10 +1914,13 @@ function resize() {
   if (dust) dust.material.uniforms.uPx.value = renderer.getPixelRatio();
 }
 addEventListener('resize', resize);
+const IS_WV = !!window.VOBridge || /; wv\)/.test(navigator.userAgent);
+if (IS_WV) document.documentElement.classList.add('wv');
 function uiScale() {
   const dev = Math.min(screen.width || innerWidth, screen.height || innerHeight);
   const k = isMobile && innerWidth > 480 ? clamp(innerWidth / 430, 1, 1.45) : 1;
   document.documentElement.style.setProperty('--uiz', k);
+  if (IS_WV) return;
   for (const id of ['hud', 'gate', 'connect', 'funcs', 'try', 'toast', 'btnSkip']) { const el = $(id); if (el) el.style.zoom = k; }
 }
 uiScale(); addEventListener('resize', uiScale);
