@@ -7,9 +7,11 @@
 
 package com.meta.wearable.dat.externalsampleapps.cameraaccess.experience
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,30 +65,53 @@ object Updater {
           .getOrNull()
           ?.takeIf { it.versionCode > BuildConfig.VERSION_CODE }
 
-  /** Blocking. Downloads the APK into cache/updates, reporting progress 0..1. */
+  const val APK_URL = BASE + "VisionOttica-Meta.apk"
+
+  /**
+   * Blocking. Downloads the APK with Android's DownloadManager (handles GitHub's redirect to its CDN,
+   * retries on flaky connections, shows a system notification), reporting progress 0..1.
+   */
   fun download(context: Context, onProgress: (Float) -> Unit): File? =
       runCatching {
-            val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val out = File(dir, "VisionOttica-Meta.apk")
-            val c = open(BASE + "VisionOttica-Meta.apk")
-            if (c.responseCode != 200) return null
-            val total = c.contentLengthLong.coerceAtLeast(1)
-            c.inputStream.use { input ->
-              out.outputStream().use { output ->
-                val buf = ByteArray(64 * 1024)
-                var done = 0L
-                while (true) {
-                  val n = input.read(buf)
-                  if (n < 0) break
-                  output.write(buf, 0, n)
-                  done += n
-                  onProgress((done.toFloat() / total).coerceIn(0f, 1f))
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
+            val out = File(dir, "VisionOttica-Meta.apk").apply { if (exists()) delete() }
+            val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val id =
+                dm.enqueue(
+                    DownloadManager.Request(Uri.parse(APK_URL))
+                        .setTitle("VisionOttica Meta")
+                        .setDescription("Aggiornamento in download")
+                        .setMimeType("application/vnd.android.package-archive")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                        .setDestinationUri(Uri.fromFile(out))
+                )
+            while (true) {
+              Thread.sleep(400)
+              dm.query(DownloadManager.Query().setFilterById(id)).use { c ->
+                if (!c.moveToFirst()) return null
+                val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                val done = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                if (total > 0) onProgress((done.toFloat() / total).coerceIn(0f, 1f))
+                when (status) {
+                  DownloadManager.STATUS_SUCCESSFUL -> return out.takeIf { it.length() > 0 }
+                  DownloadManager.STATUS_FAILED -> return null
+                  else -> Unit
                 }
               }
             }
-            out
+            null as File?
           }
           .getOrNull()
+
+  /** Fallback: let the browser download the APK (the user then taps the finished download). */
+  fun openInBrowser(context: Context) {
+    runCatching {
+      context.startActivity(
+          Intent(Intent.ACTION_VIEW, Uri.parse(APK_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      )
+    }
+  }
 
   /** Opens Android's installer. Returns false if the user must first allow installs from this app. */
   fun install(context: Context, apk: File): Boolean {
@@ -116,6 +141,7 @@ fun UpdatePrompt() {
   var progress by remember { mutableFloatStateOf(0f) }
   var apk by remember { mutableStateOf<File?>(null) }
   var message by remember { mutableStateOf<String?>(null) }
+  var failed by remember { mutableStateOf(false) }
 
   LaunchedEffect(Unit) { info = withContext(Dispatchers.IO) { Updater.checkNewer() } }
 
@@ -148,10 +174,14 @@ fun UpdatePrompt() {
               downloading = true
               message = null
               scope.launch {
-                val file = withContext(Dispatchers.IO) { Updater.download(context) { progress = it } }
+                val file =
+                    withContext(Dispatchers.IO) {
+                      Updater.download(context) { p -> scope.launch(Dispatchers.Main) { progress = p } }
+                    }
                 downloading = false
                 if (file == null) {
-                  message = "Download non riuscito. Controlla la connessione e riprova."
+                  failed = true
+                  message = "Download non riuscito. Riprova, oppure scaricala dal browser."
                 } else {
                   apk = file
                   if (!Updater.install(context, file))
@@ -164,7 +194,9 @@ fun UpdatePrompt() {
         }
       },
       dismissButton = {
-        TextButton(enabled = !downloading, onClick = { info = null }) { Text("Più tardi") }
+        if (failed)
+            TextButton(onClick = { Updater.openInBrowser(context) }) { Text("Scarica dal browser") }
+        else TextButton(enabled = !downloading, onClick = { info = null }) { Text("Più tardi") }
       },
   )
 }
