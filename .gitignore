@@ -7,3 +7,6 @@ local.properties
 web/three
 web/_test.html
 android/.kotlin/
+
+# bundled three.js for the Android WebView (not a build output)
+!android/app/src/main/assets/web/lib/three/build/

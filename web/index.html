@@ -308,7 +308,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 </script>
 <script>
 // capture=true also catches failed <script type=module>/resource loads, which never reach window.onerror otherwise
-window.addEventListener('error', e => { const g = document.getElementById('gateHint'); if (!g || window.__done) return; if (!(e instanceof ErrorEvent) && !(e.target && e.target.tagName === 'SCRIPT')) return; // ignore fonts/images/audio g.className = 'err'; const src = e.target && (e.target.src || e.target.href); g.textContent = 'Errore di avvio: ' + (e.message || ('file non caricato ' + (src || ''))); }, true);
+window.addEventListener('error', e => { const g = document.getElementById('gateHint'); if (!g || window.__done) return; if (!(e instanceof ErrorEvent) && !(e.target && e.target.tagName === 'SCRIPT')) return; /* ignore fonts/images/audio */ g.className = 'err'; const src = e.target && (e.target.src || e.target.href); g.textContent = 'Errore di avvio: ' + (e.message || ('file non caricato ' + (src || ''))); }, true);
 window.addEventListener('unhandledrejection', e => { const g = document.getElementById('gateHint'); if (g && !window.__done) { g.className = 'err'; g.textContent = 'Errore di avvio: ' + ((e.reason && e.reason.message) || e.reason); } });
 window.__bootT0 = Date.now();
 setTimeout(() => { const g = document.getElementById('gateHint'); if (g && !window.__done && !window.__bootStarted) { g.className = 'err'; g.textContent = 'Il motore 3D non si è avviato. Chiudi e riapri l\'app; se si ripete, segnala questo messaggio.'; } }, 15000);
