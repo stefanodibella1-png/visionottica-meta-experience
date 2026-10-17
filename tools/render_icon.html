@@ -1,0 +1,22 @@
+<!doctype html><html><body style="margin:0;background:transparent">
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+function b64bytes(s){const b=atob(s.slice(s.indexOf(',')+1));const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+async function loadGltfJson(url){const gj=await fetch(url).then(r=>r.json());const bin=b64bytes(gj.buffers[0].uri);delete gj.buffers[0].uri;const jb=new TextEncoder().encode(JSON.stringify(gj));const jP=(4-jb.length%4)%4,bP=(4-bin.length%4)%4;const t=12+8+jb.length+jP+8+bin.length+bP;const g=new ArrayBuffer(t),dv=new DataView(g),u8=new Uint8Array(g);dv.setUint32(0,0x46546C67,true);dv.setUint32(4,2,true);dv.setUint32(8,t,true);dv.setUint32(12,jb.length+jP,true);dv.setUint32(16,0x4E4F534A,true);u8.set(jb,20);u8.fill(0x20,20+jb.length,20+jb.length+jP);const o=20+jb.length+jP;dv.setUint32(o,bin.length+bP,true);dv.setUint32(o+4,0x004E4942,true);u8.set(bin,o+8);return new GLTFLoader().parseAsync(g,'');}
+const S=1024, r=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true}); r.setSize(S,S); r.setClearColor(0,0); r.toneMapping=THREE.ACESFilmicToneMapping; r.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const sc=new THREE.Scene(); const pm=new THREE.PMREMGenerator(r); sc.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;
+const key=new THREE.DirectionalLight('#ffffff',2.2); key.position.set(2,3,4); sc.add(key); const rim=new THREE.DirectionalLight('#9fe8ff',1.6); rim.position.set(-3,1,-2); sc.add(rim);
+const gltf=await loadGltfJson('assets/glasses/rayban_meta.gltf.json'); const m=gltf.scene;
+const frame=new THREE.MeshPhysicalMaterial({color:'#14171c',roughness:0.12,clearcoat:1,clearcoatRoughness:0.04,envMapIntensity:1.5,side:THREE.DoubleSide});
+const lens=new THREE.MeshPhysicalMaterial({color:'#0c1622',roughness:0.02,metalness:0.3,transparent:true,opacity:0.8,envMapIntensity:2,side:THREE.DoubleSide});
+const cam=new THREE.MeshPhysicalMaterial({color:'#05080f',roughness:0.02,metalness:0.5,clearcoat:1});
+m.traverse(o=>{if(!o.isMesh)return;const n=(o.material&&o.material.name)||'';if(/Plastic/i.test(n))o.material=frame;else if(/^glass/i.test(n)){o.material=lens;o.renderOrder=3;}else if(/camera lens/i.test(n))o.material=cam;else if(o.material&&o.material.map)o.visible=false;else if(o.material&&o.material.transmission)o.material.transmission=0;});
+const w=new THREE.Group(); w.add(m); let b=new THREE.Box3().setFromObject(m),sz=b.getSize(new THREE.Vector3()); if(sz.z>sz.x*1.05)m.rotation.y=Math.PI/2;
+b=new THREE.Box3().setFromObject(w); m.position.sub(b.getCenter(new THREE.Vector3())); b=new THREE.Box3().setFromObject(w); sz=b.getSize(new THREE.Vector3()); w.scale.setScalar(2/sz.x); sc.add(w);
+w.rotation.y=+(new URLSearchParams(location.search).get('ry')||0.45);
+const c=new THREE.PerspectiveCamera(22,1,0.1,50); c.position.set(0,0.35,6.2); c.lookAt(0,0,0);
+r.render(sc,c); window.__png=r.domElement.toDataURL('image/png');
+</script></body></html>
