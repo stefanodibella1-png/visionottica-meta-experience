@@ -1,0 +1,9 @@
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+web/three
+web/_test.html
+android/.kotlin/

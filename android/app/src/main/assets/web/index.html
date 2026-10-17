@@ -1,0 +1,1888 @@
+<meta charset="utf-8">
+<title>VisionOttica Meta Experience</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#04070d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one full-bleed WebGL stage; a thin HUD frames it (status top, Sofia's subtitles bottom), sheets slide up over the stage. */
+:root{
+  --void:#04070d;        /* deep night black */
+  --ink:#e9f1fb;         /* cool white text */
+  --mist:#8ea3bd;        /* secondary text */
+  --cyan:#5fe3ff;        /* electric accent */
+  --glass:rgba(10,18,32,.62);
+  --line:rgba(143,190,235,.18);
+  --warn:#ffcf6b;
+  --ok:#62f0b3;
+  --f-display:"Michroma","Eurostile","Arial Narrow",sans-serif;
+  --f-body:"Figtree","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important;}
+html,body{height:100%;}
+body{margin:0;background:var(--void);color:var(--ink);font-family:var(--f-body);overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:none;}
+#stage{position:fixed;inset:0;display:block;width:100%;height:100%;outline:none;}
+button{font:inherit;color:inherit;}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+.hud{position:fixed;inset:0;pointer-events:none;z-index:5;}
+.hud > *{pointer-events:auto;}
+
+/* top bar */
+.top{position:absolute;left:0;right:0;top:0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding-top:calc(env(safe-area-inset-top,0px) + 12px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  background:linear-gradient(to bottom,rgba(4,7,13,.75),rgba(4,7,13,0));pointer-events:none;}
+.top > *{pointer-events:auto;}
+.brand{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.brand b{font-family:var(--f-display);font-weight:400;font-size:14px;letter-spacing:.32em;}
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:15px;padding:7px 12px !important;color:var(--mist);background:var(--glass);border:1px solid var(--line);
+  padding:4px 9px;border-radius:999px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);white-space:nowrap;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.tools{display:flex;gap:8px;}
+.ib{width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.ib svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.ib[aria-pressed="true"]{border-color:var(--cyan);}
+.ib[aria-pressed="true"] svg{stroke:var(--cyan);}
+
+/* bottom */
+.bottom{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:10px;align-items:stretch;
+  padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:40px;background:linear-gradient(to top,rgba(4,7,13,.88) 30%,rgba(4,7,13,0));pointer-events:none;}
+.bottom > *{pointer-events:auto;}
+.sub{max-width:620px;align-self:center;width:100%;text-align:left;min-height:0;}
+.sub small{display:block;font-family:var(--f-display);font-size:12px;letter-spacing:.3em;color:var(--cyan);margin-bottom:5px;}
+.sub p{margin:0;font-size:19px;line-height:1.45;text-wrap:pretty;}
+.sub p .said{color:var(--ink);} .sub p .rest{color:rgba(233,241,251,.45);}
+.modes{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.pill{border:1px solid var(--line);background:var(--glass);padding:14px 20px;border-radius:999px;font-size:17px;font-weight:600;cursor:pointer;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
+.pill.primary{background:var(--cyan);color:#021018;border-color:var(--cyan);}
+.pill[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan);}
+
+/* station sheet */
+.sheet{max-width:620px;align-self:center;width:100%;box-sizing:border-box;background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:14px 16px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;flex-direction:column;gap:8px;}
+.sheet .k{font-family:var(--f-mono);font-size:13px;color:var(--mist);letter-spacing:.06em;}
+.sheet h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:23px;letter-spacing:.12em;text-wrap:balance;}
+.sheet .st{display:flex;gap:8px;align-items:flex-start;font-size:16px;color:var(--mist);line-height:1.4;}
+.sheet .st .dot{margin-top:4px;flex:none;}
+.sheet .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
+
+/* settings */
+.panel{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 72px);width:min(320px,calc(100% - 32px));box-sizing:border-box;
+  background:rgba(8,14,26,.92);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px;font-size:15px;}
+.panel h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:12px;letter-spacing:.28em;color:var(--mist);}
+.seg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.seg button{padding:11px 0;border-radius:8px;border:1px solid var(--line);background:transparent;font-size:13px;cursor:pointer;}
+.seg button[aria-pressed="true"]{background:var(--cyan);color:#021018;border-color:var(--cyan);}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.prow span{color:var(--mist);}
+.tg{width:44px;height:26px;border-radius:13px;border:1px solid var(--line);background:#16233a;position:relative;cursor:pointer;flex:none;}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--mist);transition:transform .2s;}
+.tg[aria-pressed="true"]{background:rgba(95,227,255,.25);border-color:var(--cyan);}
+.tg[aria-pressed="true"]::after{transform:translateX(18px);background:var(--cyan);}
+.note{font-size:13px;color:var(--mist);line-height:1.45;margin:0;}
+
+/* stats */
+.stats{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:calc(env(safe-area-inset-top,0px) + 84px);font-family:var(--f-mono);font-size:12px;line-height:1.5;
+  background:rgba(0,0,0,.55);border:1px solid var(--line);border-radius:8px;padding:6px 9px;color:#b9f6ff;white-space:pre;font-variant-numeric:tabular-nums;pointer-events:none;}
+
+/* gate + intro overlays */
+.gate{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:var(--void);transition:opacity .8s;}
+.gate-in{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;padding-inline:max(24px,env(safe-area-inset-left,0px));max-width:440px;}
+.word{font-family:var(--f-display);font-size:clamp(20px,6.4vw,34px);letter-spacing:.34em;margin:0;padding-left:.34em;}
+.word + p{margin:-10px 0 0;font-family:var(--f-display);font-size:10px;letter-spacing:.5em;color:var(--mist);padding-left:.5em;}
+.logo{margin:0;line-height:0;} .logo img,.tc-logo{width:min(250px,64vw);height:auto;display:block;margin:0 auto;}
+.tag{margin:-6px 0 0;font-family:var(--f-display);font-size:12px;letter-spacing:.5em;color:var(--cyan);padding-left:.5em;}
+.bar{width:220px;height:2px;background:rgba(143,190,235,.15);border-radius:2px;overflow:hidden;}
+.bar i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 12px var(--cyan);transition:width .2s;}
+.gate .hint{font-size:15px;color:var(--mist);line-height:1.5;margin:0;}
+.gate .pill.primary{font-size:18px;padding:16px 30px;}
+.gate .pill[disabled]{opacity:.35;}
+.err{color:var(--warn);font-size:12.5px;max-width:360px;line-height:1.5;}
+.flash{position:fixed;inset:0;z-index:15;pointer-events:none;background:var(--void);opacity:0;}
+.pulse{position:fixed;left:0;right:0;top:50%;height:2px;z-index:16;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,transparent,var(--cyan) 40%,#fff 50%,var(--cyan) 60%,transparent);box-shadow:0 0 24px 4px rgba(95,227,255,.6);transform:scaleX(0);}
+.title-card{position:fixed;inset:0;z-index:17;display:grid;place-items:center;pointer-events:none;opacity:0;}
+.title-card div{text-align:center;}
+.skip{position:fixed;z-index:18;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);}
+.chip-btn{cursor:pointer;color:var(--ink);}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok);}
+.modal{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(2,5,10,.72);padding-inline:max(16px,env(safe-area-inset-left,0px));}
+.modal-in{width:min(460px,100%);box-sizing:border-box;background:#0b1424;border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px;max-height:88vh;overflow:auto;}
+.modal h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:20px;letter-spacing:.06em;text-wrap:balance;}
+.modal .note{font-size:15px;color:var(--mist);}
+.modal b{color:var(--ink);font-weight:600;}
+.lead{margin:0;font-size:16px;line-height:1.45;}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:rgba(143,190,235,.08);border-radius:12px;padding:4px;}
+.tab{border:0;background:transparent;padding:11px 0;border-radius:9px;font-size:15px;font-weight:600;color:var(--mist);cursor:pointer;}
+.tab[aria-selected="true"]{background:var(--cyan);color:#021018;}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:16px;line-height:1.45;}
+.row-btn{display:flex;gap:10px;flex-wrap:wrap;}
+.q{margin:0;font-size:17px;font-weight:600;}
+.sheet .nav{display:flex;gap:8px;flex-wrap:nowrap;}
+.sheet .nav .primary{flex:1;}
+.pill.sq{width:54px;padding-inline:0;flex:none;}
+.sub p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.x{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:transparent;font-size:18px;cursor:pointer;flex:none;}
+.fn{gap:16px;}
+.fn-head{display:flex;justify-content:space-between;align-items:center;}
+.demo-chip{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.14em;font-weight:600;color:var(--warn);border:1px solid rgba(255,207,107,.35);border-radius:999px;padding:6px 12px;}
+.fn h2{font-family:var(--f-body);font-weight:700;font-size:30px;letter-spacing:0;}
+.fn h2 em{font-style:normal;color:var(--cyan);}
+.fn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fn-card{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px;border-radius:18px;border:1px solid var(--line);background:#111d33;cursor:pointer;min-height:118px;}
+.fn-card .ic{width:44px;height:44px;border-radius:12px;background:rgba(95,227,255,.12);display:grid;place-items:center;margin-bottom:8px;}
+.fn-card .ic svg{width:22px;height:22px;stroke:var(--cyan);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.fn-card b{font-size:17px;}
+.fn-card small{font-size:14px;color:var(--mist);}
+.fn-card.hi{background:linear-gradient(140deg,#1d5b74,#123049);border-color:rgba(95,227,255,.5);}
+.fn-card.wow{background:#eef7fb;color:#08121f;}
+.fn-card.wow b{color:#08121f;} .fn-card.wow small{color:#3b5568;} .fn-card.wow .ic{background:#d6eef8;} .fn-card.wow .ic svg{stroke:#0b6d8a;}
+.fn-status{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border:1px solid var(--line);border-radius:14px;padding:12px;}
+.fn-status small{display:block;font-size:11px;letter-spacing:.12em;color:var(--mist);}
+.fn-status b{font-size:14px;font-weight:600;}
+.try{position:fixed;left:0;right:0;bottom:0;z-index:25;max-height:66%;display:flex;flex-direction:column;background:rgba(9,16,30,.96);border-top:1px solid var(--line);border-radius:22px 22px 0 0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding-top:12px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+.try-head{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.try-head h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:18px;letter-spacing:.08em;}
+.try-body{overflow:auto;display:flex;flex-direction:column;gap:12px;padding-block:10px;font-size:16px;line-height:1.45;}
+.try-body input[type=text],.try-body input[type=tel],.try-body select{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0e1a2e;color:var(--ink);}
+.try-body .row2{display:flex;gap:8px;align-items:stretch;} .try-body .row2 > input{flex:1;min-width:0;}
+.try-body .hint2{font-size:13.5px;color:var(--mist);margin:0;}
+.try-body img{max-width:100%;border-radius:14px;display:block;}
+.bubble{padding:12px 14px;border-radius:14px;background:#13223b;max-width:92%;white-space:pre-wrap;}
+.bubble.me{align-self:flex-end;background:#1d5b74;}
+.chips{display:flex;gap:8px;flex-wrap:wrap;}
+.chip2{font-size:14px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer;color:var(--ink);}
+.chip2[aria-pressed=true]{background:var(--cyan);color:#021018;border-color:var(--cyan);}
+.big-out{font-size:22px;line-height:1.35;font-weight:600;}
+.toast{position:fixed;z-index:19;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 84px);max-width:calc(100% - 32px);
+  background:rgba(8,14,26,.92);border:1px solid var(--line);border-radius:12px;padding:11px 16px;font-size:15px;color:var(--ink);}
+@media (prefers-reduced-motion:reduce){.gate,.tg::after{transition:none}}
+</style>
+
+<canvas id="stage" tabindex="-1" aria-label="Showroom 3D VisionOttica"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="top">
+    <div class="brand">
+      <b>VISIONOTTICA</b>
+      <button class="chip chip-btn" id="devChip" aria-label="Collega gli occhiali"><span class="dot" id="devDot"></span><span id="devTxt">Collega gli occhiali</span></button>
+    </div>
+    <div class="tools">
+      <button class="ib" id="btnStop" aria-label="Interrompi la voce di Sofia" title="Interrompi la voce"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg></button>
+      <button class="ib" id="btnCC" aria-label="Sottotitoli" aria-pressed="true" title="Sottotitoli"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.4 2.4 0 1 0 0 3.6M17 10.2a2.4 2.4 0 1 0 0 3.6"/></svg></button>
+      <button class="ib" id="btnSet" aria-label="Impostazioni" aria-pressed="false" title="Impostazioni"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel" hidden>
+    <h3>QUALITÀ GRAFICA</h3>
+    <div class="seg" id="seg">
+      <button data-q="auto" id="q-auto">Auto</button><button data-q="ultra" id="q-ultra">Ultra</button><button data-q="high" id="q-high">High</button><button data-q="balanced" id="q-bal">Bal.</button><button data-q="low" id="q-low">Low</button>
+    </div>
+    <p class="note" id="qNote"></p>
+    <div class="prow"><span>Diagnostica (FPS, memoria)</span><button class="tg" id="tgStats" aria-pressed="false" aria-label="Diagnostica"></button></div>
+    <div class="prow"><span>Voce</span><b id="voiceName" style="font-weight:500;font-size:12px;text-align:right">—</b></div>
+    <div class="row" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="pill" id="btnReplay">Rivedi l'introduzione</button>
+    </div>
+    <p class="note">Fase 1 · showroom e Sofia. Voce: neurale italiana pre-registrata (Kokoro, voce Sara, licenza Apache 2.0, generata offline e gratuita); per le frasi non registrate si usa la voce del dispositivo. Labiale sincronizzato su frasi e volume dell'audio. Sofia: modello Microsoft Rocketbox (licenza MIT), animazioni in motion capture.</p>
+  </div>
+
+  <div class="stats" id="stats" hidden></div>
+
+  <div class="bottom">
+    <div class="sub" id="sub" hidden><small>SOFIA</small><p id="subTxt"></p></div>
+    <div class="sheet" id="sheet" hidden>
+      <span class="k" id="shK"></span>
+      <h2 id="shT"></h2>
+      <span id="shS" hidden></span>
+      <div class="row nav">
+        <button class="pill primary" id="btnTry">▶ Prova ora</button>
+        <button class="pill sq" id="btnBack" aria-label="Torna allo showroom">⌂</button>
+        <button class="pill sq" id="btnNext" aria-label="Prossima stazione">→</button>
+      </div>
+    </div>
+    <div class="modes" id="modes" hidden>
+      <button class="pill primary" id="btnTour">Tour guidato con Sofia</button>
+      <button class="pill" id="btnFree" aria-pressed="true">Esplora liberamente</button>
+    </div>
+  </div>
+</div>
+
+<div class="gate" id="gate">
+  <div class="gate-in">
+    <h1 class="logo"><img src="assets/brand/visionottica_logo_light.png" alt="VisionOttica · Il tuo ottico di fiducia" width="1014" height="614"></h1>
+    <p class="tag">META EXPERIENCE</p>
+    <div class="bar" aria-hidden="true"><i id="barI"></i></div>
+    <p class="hint" id="gateHint">Caricamento dello showroom…</p>
+    <button class="pill primary" id="btnEnter" disabled>Entra nell'esperienza</button>
+    <p class="hint">Alza il volume: Sofia ti parla.</p>
+  </div>
+</div>
+<div class="flash" id="flash"></div>
+<div class="pulse" id="pulse"></div>
+<div class="title-card" id="tcard"><div><img class="tc-logo" src="assets/brand/visionottica_logo_light.png" alt="" width="1014" height="614"><p class="tag" style="margin-top:14px">IL FUTURO DELLA VISIONE</p></div></div>
+<button class="pill skip" id="btnSkip" hidden>Salta intro ›</button>
+<div class="toast" id="toast" hidden></div>
+<div class="modal" id="funcs" hidden role="dialog" aria-modal="true" aria-labelledby="fnT">
+  <div class="modal-in fn">
+    <div class="fn-head"><span class="demo-chip"><span class="dot"></span>DEMO VISIONOTTICA</span><button class="x" id="fnClose" aria-label="Chiudi">✕</button></div>
+    <h2 id="fnT">Meta <em>Experience</em></h2>
+    <p class="lead">Scegli cosa provare. Sofia ti accompagna in ogni funzione.</p>
+    <div class="fn-grid">
+      <button class="fn-card hi" data-st="0"><span class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><b>Parla con Sofia</b><small>Assistente AI</small></button>
+      <button class="fn-card" data-st="1"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><b>Foto e video</b><small>Camera POV</small></button>
+      <button class="fn-card" data-st="2"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h9M8.5 3v2M6 5c1 4 4 7 7 8M11 5c-1 4-4 7-7 8M13 21l4-9 4 9M14.5 18h5"/></svg></span><b>Traduttore</b><small>6 lingue</small></button>
+      <button class="fn-card" data-st="3"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><b>Musica</b><small>Audio open-ear</small></button>
+      <button class="fn-card" data-st="4"><span class="ic"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span><b>Telefono</b><small>Mani libere</small></button>
+      <button class="fn-card wow" data-st="5"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg></span><b>Vision AI</b><small>Effetto wow</small></button>
+    </div>
+    <button class="pill" id="fnTour">Fai il tour guidato con Sofia</button>
+    <div class="fn-status">
+      <div><small>OCCHIALI</small><b id="fsG">Non collegati</b></div>
+      <div><small>AUDIO</small><b id="fsA">Telefono</b></div>
+      <div><small>AI</small><b id="fsAI">Pronta</b></div>
+    </div>
+  </div>
+</div>
+<div class="try" id="try" hidden role="dialog" aria-labelledby="tyT">
+  <div class="try-head"><h3 id="tyT"></h3><button class="x" id="tyClose" aria-label="Chiudi">✕</button></div>
+  <div class="try-body" id="tyBody"></div>
+</div>
+<input type="file" id="pickPhoto" accept="image/*" capture="environment" hidden>
+<input type="file" id="pickAudio" accept="audio/*" hidden>
+<div class="modal" id="connect" hidden role="dialog" aria-modal="true" aria-labelledby="cnT">
+  <div class="modal-in">
+    <h2 id="cnT">Collega i Ray-Ban Meta</h2>
+    <p class="lead">Gli occhiali si collegano <b>al telefono</b>, non a questa pagina. Quando sono collegati, la voce di Sofia esce dagli occhiali.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tabA" role="tab" aria-selected="true">Già abbinati</button>
+      <button class="tab" id="tabB" role="tab" aria-selected="false">Prima volta</button>
+    </div>
+    <ol class="steps" id="stepsA">
+      <li><b>Accendi gli occhiali</b> e aprili come per indossarli.</li>
+      <li>Apri l'app <b>Meta AI</b>: in alto deve comparire che gli occhiali sono <b>connessi</b>. Se non lo sono, tieni gli occhiali vicino al telefono e attendi qualche secondo.</li>
+      <li>Apri <b>Impostazioni di Android → Dispositivi connessi</b> (o Bluetooth), tocca l'ingranaggio accanto agli occhiali e attiva <b>Audio multimediale</b>.</li>
+      <li>Torna qui e tocca <b>Prova l'audio</b>.</li>
+    </ol>
+    <ol class="steps" id="stepsB" hidden>
+      <li>Installa l'app <b>Meta AI</b> dal Play Store e accedi.</li>
+      <li>Nell'app scegli di <b>aggiungere/abbinare gli occhiali</b> e segui le istruzioni a schermo (occhiali carichi, accesi e vicini al telefono).</li>
+      <li>A fine abbinamento il Bluetooth si collega da solo. Controlla solo che in <b>Dispositivi connessi</b> sia attivo l'<b>Audio multimediale</b>.</li>
+      <li>Torna qui e tocca <b>Prova l'audio</b>.</li>
+    </ol>
+    <div class="row-btn">
+      <button class="pill primary" id="cnTest">▶ Prova l'audio</button>
+    </div>
+    <p class="q" id="cnQ" hidden>Hai sentito Sofia negli occhiali?</p>
+    <div class="row-btn" id="cnAns" hidden>
+      <button class="pill primary" id="cnYes">Sì, collegati</button>
+      <button class="pill" id="cnNo">No, la sento dal telefono</button>
+    </div>
+    <p class="note" id="cnHelp" hidden>L'audio sta uscendo dal telefono, quindi gli occhiali non sono collegati per l'audio. Controlla il passo 3: <b>Dispositivi connessi → ingranaggio accanto agli occhiali → Audio multimediale</b> attivo. Se non compaiono, spegni e riaccendi gli occhiali e riapri l'app Meta AI. Poi tocca di nuovo Prova l'audio.</p>
+    <button class="pill" id="cnClose">Chiudi</button>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"./lib/three/build/three.module.js",
+  "three/addons/":"./lib/three/examples/jsm/"
+}}
+</script>
+<script>
+window.addEventListener('error', e => { const g = document.getElementById('gateHint'); if (g) { g.className = 'err'; g.textContent = 'Errore di avvio: ' + (e.message || e); } });
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/* =========================================================================
+   0. UTIL
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const damp = (a, b, k, dt) => lerp(a, b, 1 - Math.exp(-k * dt));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const SIM = { t: 0, waits: [] };
+const wait = ms => new Promise(r => SIM.waits.push({ at: SIM.t + ms / 1000, r }));
+const simNow = () => SIM.t * 1000;
+const TEST = new URLSearchParams(location.search);
+const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || matchMedia('(pointer:coarse)').matches;
+const C_CYAN = new THREE.Color('#5fe3ff');
+const t0Load = performance.now();
+let toastTimer;
+function toast(msg, ms = 3500) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms); }
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch { return null; } }
+
+/* =========================================================================
+   1. QUALITY PROFILES (ULTRA / HIGH / BALANCED / LOW) + adaptive control
+   ========================================================================= */
+const PROFILES = {
+  ultra:    { label: 'Ultra',    dpr: 2,    bloom: true,  bloomScale: .5,  reflector: .5,  shadows: 2048, particles: 2200, skinPhysical: true },
+  high:     { label: 'High',     dpr: 1.6,  bloom: true,  bloomScale: .4,  reflector: .35, shadows: 1024, particles: 1500, skinPhysical: false },
+  balanced: { label: 'Balanced', dpr: 1.2,  bloom: true,  bloomScale: .22, reflector: 0,   shadows: 1024, particles: 700,  skinPhysical: false },
+  low:      { label: 'Low',      dpr: 0.9,  bloom: false, bloomScale: 0,   reflector: 0,   shadows: 512,  particles: 300,  skinPhysical: false },
+};
+const ORDER = ['ultra', 'high', 'balanced', 'low'];
+let qMode = store('vo_q') || 'auto';
+let qActive = qMode !== 'auto' ? qMode : (TEST.get('q') || (isMobile ? 'balanced' : 'ultra'));
+
+/* =========================================================================
+   2. RENDERER / SCENE
+   ========================================================================= */
+const canvas = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.info.autoReset = false;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0a1322');
+scene.fog = new THREE.FogExp2('#0a1322', 0.014);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 120);
+camera.position.set(0, 1.0, 14.6);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.minDistance = 2.2; controls.maxDistance = 11;
+controls.minPolarAngle = 0.35; controls.maxPolarAngle = 1.52;
+controls.rotateSpeed = 0.55; controls.zoomSpeed = 0.7;
+controls.target.set(0, 1.25, 0);
+controls.enabled = false;
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.35, 0.45, 1.4);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// lights (few, mobile friendly)
+const hemi = new THREE.HemisphereLight('#9cc4ff', '#060a12', 0.45); scene.add(hemi);
+const key = new THREE.SpotLight('#fff3e6', 60, 30, 0.55, 0.6, 1.6);
+key.position.set(4.5, 7.5, 7.5); key.target.position.set(0.6, 1, 0.6);
+key.castShadow = true; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.camera.near = 3; key.shadow.camera.far = 22;
+scene.add(key, key.target);
+const rim = new THREE.SpotLight('#5fd8ff', 70, 30, 0.6, 0.7, 1.5);
+rim.position.set(-3, 6, -6.5); rim.target.position.set(0.8, 1.2, 1); scene.add(rim, rim.target);
+const fill = new THREE.PointLight('#a8c6ff', 10, 20, 1.4); fill.position.set(-4, 2.5, 4); scene.add(fill);
+const topSpot = new THREE.SpotLight('#e8f6ff', 30, 8, 0.35, 0.5, 1.2); topSpot.position.set(0, 5.5, 1.2); topSpot.target.position.set(0, 1.6, 0); scene.add(topSpot, topSpot.target);
+const LIGHT_BASE = { hemi: 1.0, key: 50, rim: 60, fill: 22, top: 34 };
+let lightLevel = 0; // 0..1 driven by intro
+
+/* =========================================================================
+   3. SHOWROOM ARCHITECTURE
+   ========================================================================= */
+const world = new THREE.Group(); scene.add(world);
+const anim = []; // per-frame animators: fn(t, dt)
+const HALL_R = 15;
+
+// --- reflective floor (profile dependent) + holographic grid overlay
+let reflector = null;
+function buildReflector(scale) {
+  if (reflector) { world.remove(reflector); reflector.getRenderTarget().dispose(); reflector = null; }
+  if (!scale) return;
+  reflector = new Reflector(new THREE.CircleGeometry(HALL_R, 64), {
+    textureWidth: Math.round(innerWidth * renderer.getPixelRatio() * scale),
+    textureHeight: Math.round(innerHeight * renderer.getPixelRatio() * scale),
+    color: 0x8a96a8, clipBias: 0.003,
+  });
+  reflector.rotation.x = -Math.PI / 2; reflector.position.y = -0.002;
+  world.add(reflector);
+}
+const floorBase = new THREE.Mesh(new THREE.CircleGeometry(HALL_R, 64), new THREE.MeshStandardMaterial({ color: '#16233a', roughness: 0.4, metalness: 0.5, envMapIntensity: 0.35 }));
+floorBase.rotation.x = -Math.PI / 2; floorBase.position.y = -0.004; world.add(floorBase);
+
+const floorMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: { uTime: { value: 0 }, uLevel: { value: 0 }, uAlpha: { value: 0.72 }, uPulse: { value: -10 } },
+  vertexShader: `varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `
+    varying vec2 vP; uniform float uTime, uLevel, uAlpha, uPulse;
+    float line(float v, float w){ float d = abs(fract(v)-.5); return smoothstep(.5-w, .5, d); }
+    void main(){
+      float r = length(vP); float a = atan(vP.y, vP.x);
+      vec3 base = vec3(.05,.08,.13);
+      float rings = line(r*1.0, .012) * smoothstep(14.5, 3.0, r);
+      float rays = line(a/6.28318*48., .02) * smoothstep(2.2, 3.5, r) * smoothstep(14., 5., r);
+      float inner = smoothstep(1.35,1.3,r)*smoothstep(1.18,1.25,r);
+      float wave = exp(-pow((r - mod(uTime*2.2, 18.)) * 2.2, 2.)) * smoothstep(15.,2.,r);
+      float sweep = exp(-pow((r - uPulse) * 1.6, 2.));
+      vec3 cyan = vec3(.37,.89,1.);
+      vec3 col = base + cyan * (rings*.35 + rays*.12 + inner*1.6 + wave*.22 + sweep*1.4) * uLevel;
+      float alpha = uAlpha + (rings*.2 + inner*.3 + sweep*.5) * uLevel;
+      alpha *= smoothstep(HALL, HALL-1.5, r);
+      gl_FragColor = vec4(col, clamp(alpha, 0., 1.));
+    }`.replace(/HALL/g, HALL_R.toFixed(1)),
+});
+const floor = new THREE.Mesh(new THREE.CircleGeometry(HALL_R, 96), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.position.y = 0.001; floor.renderOrder = 1; world.add(floor);
+const shadowCatcher = new THREE.Mesh(new THREE.CircleGeometry(6, 48), new THREE.ShadowMaterial({ opacity: 0.5 }));
+shadowCatcher.rotation.x = -Math.PI / 2; shadowCatcher.position.y = 0.003; shadowCatcher.receiveShadow = true; shadowCatcher.renderOrder = 2; world.add(shadowCatcher);
+
+// --- outer wall
+const metalDark = new THREE.MeshStandardMaterial({ color: '#2a3a54', roughness: 0.32, metalness: 0.85 });
+const wall = new THREE.Mesh(new THREE.CylinderGeometry(HALL_R, HALL_R, 10, 72, 1, true), new THREE.MeshStandardMaterial({ color: '#1a2840', roughness: 0.55, metalness: 0.5, side: THREE.BackSide }));
+wall.position.y = 5; world.add(wall);
+const ceil = new THREE.Mesh(new THREE.CircleGeometry(HALL_R, 64), new THREE.MeshStandardMaterial({ color: '#121c2e', roughness: 0.7, metalness: 0.4, side: THREE.DoubleSide }));
+ceil.rotation.x = Math.PI / 2; ceil.position.y = 9.6; world.add(ceil);
+
+// --- light strips on wall (instanced) — lit sequentially in the intro
+const STRIPS = 56;
+const stripMat = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+const strips = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 6.5, 0.06), stripMat, STRIPS);
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
+const stripAngles = [];
+for (let i = 0; i < STRIPS; i++) {
+  const a = i / STRIPS * Math.PI * 2; stripAngles.push(a);
+  _v.set(Math.sin(a) * (HALL_R - 0.25), 4.2, Math.cos(a) * (HALL_R - 0.25));
+  _m.compose(_v, _q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a), _s);
+  strips.setMatrixAt(i, _m); strips.setColorAt(i, new THREE.Color(0, 0, 0));
+}
+world.add(strips);
+const stripCol = new THREE.Color();
+anim.push(t => {
+  for (let i = 0; i < STRIPS; i++) {
+    const a = stripAngles[i];
+    // sequential ignition from the entrance (+z) around both sides
+    const d = Math.abs(((a + Math.PI) % (Math.PI * 2)) - Math.PI) / Math.PI; // 0 at front, 1 at back
+    const on = clamp((lightLevel * 1.4 - d * 0.4) * 2.5, 0, 1);
+    const flick = 0.85 + 0.15 * Math.sin(t * 1.3 + i * 0.7);
+    stripCol.setRGB(0.25, 0.75, 1.0).multiplyScalar(on * flick * 1.6);
+    strips.setColorAt(i, stripCol);
+  }
+  strips.instanceColor.needsUpdate = true;
+});
+
+// --- architectural fins
+const FINS = 28;
+const fins = new THREE.InstancedMesh(new RoundedBoxGeometry(0.22, 8, 1.4, 2, 0.05), metalDark, FINS);
+for (let i = 0; i < FINS; i++) {
+  const a = (i + 0.5) / FINS * Math.PI * 2;
+  _v.set(Math.sin(a) * 12.6, 4, Math.cos(a) * 12.6);
+  _m.compose(_v, _q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a), _s);
+  fins.setMatrixAt(i, _m);
+}
+world.add(fins);
+
+// --- ceiling light rings
+function ring(r, y, thick, color, intensity) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(r, thick, 8, 128), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+  m.rotation.x = Math.PI / 2; m.position.y = y; m.userData.base = new THREE.Color(color).multiplyScalar(intensity);
+  m.material.color.setRGB(0, 0, 0); world.add(m); return m;
+}
+const ringsCeil = [ring(7.5, 8.6, 0.05, '#cfe9ff', 2.2), ring(4.2, 8.8, 0.035, '#5fe3ff', 2.5), ring(11.4, 8.3, 0.04, '#9fd0ff', 1.6)];
+anim.push(t => ringsCeil.forEach((r, i) => r.material.color.copy(r.userData.base).multiplyScalar(clamp(lightLevel * 1.6 - i * 0.2, 0, 1))));
+
+// --- entrance arch (front, +z)
+const arch = new THREE.Group();
+const archL = new THREE.Mesh(new RoundedBoxGeometry(0.5, 7, 0.8, 2, 0.06), metalDark); archL.position.set(-2.6, 3.5, 0);
+const archR = archL.clone(); archR.position.x = 2.6;
+const archT = new THREE.Mesh(new RoundedBoxGeometry(5.7, 0.45, 0.8, 2, 0.06), metalDark); archT.position.y = 7.2;
+const archLight = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }));
+archLight.position.set(0, 6.95, 0.42);
+arch.add(archL, archR, archT, archLight); arch.position.set(0, 0, HALL_R - 0.6); world.add(arch);
+anim.push(() => archLight.material.color.setRGB(0.3, 0.85, 1).multiplyScalar(0.6 + lightLevel * 2.2));
+
+// --- back holographic wordmark screen (typographic placeholder for the official logo)
+function makeCanvasTex(w, h, draw) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4; return tx;
+}
+let screenMat, logoImg;
+function buildScreen() {
+  const tex = makeCanvasTex(2400, 512, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const grd = g.createLinearGradient(0, 0, 0, h); grd.addColorStop(0, 'rgba(95,227,255,0)'); grd.addColorStop(.5, 'rgba(95,227,255,.06)'); grd.addColorStop(1, 'rgba(95,227,255,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 6) { g.fillStyle = 'rgba(160,230,255,.035)'; g.fillRect(0, y, w, 1); }
+    // official VisionOttica logo (light version for the dark hall)
+    const lh = 400, lw = lh * logoImg.width / logoImg.height;
+    g.shadowColor = 'rgba(95,227,255,.55)'; g.shadowBlur = 30;
+    g.drawImage(logoImg, (w - lw) / 2, 18, lw, lh);
+    g.shadowBlur = 0; g.textAlign = 'center'; g.fillStyle = '#5fe3ff'; g.font = '400 34px Michroma, sans-serif';
+    g.fillText('M E T A   E X P E R I E N C E', w / 2, 482);
+  });
+  screenMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(0, 0, 0) });
+  const geo = new THREE.CylinderGeometry(13.6, 13.6, 3.6, 64, 1, true, Math.PI - 0.62, 1.24);
+  const scr = new THREE.Mesh(geo, screenMat); scr.position.y = 5.6; scr.scale.x = -1; world.add(scr);
+  anim.push(t => screenMat.color.setScalar(clamp(lightLevel * 1.3 - 0.3, 0, 1) * (1.15 + 0.08 * Math.sin(t * 2))));
+}
+
+// --- dust particles
+let dust;
+function buildDust(n) {
+  if (dust) { world.remove(dust); dust.geometry.dispose(); }
+  const g = new THREE.BufferGeometry(); const p = new Float32Array(n * 3), s = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const r = Math.sqrt(Math.random()) * 12, a = Math.random() * 6.283; p[i * 3] = Math.sin(a) * r; p[i * 3 + 1] = Math.random() * 8; p[i * 3 + 2] = Math.cos(a) * r; s[i] = Math.random(); }
+  g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('seed', new THREE.BufferAttribute(s, 1));
+  dust = new THREE.Points(g, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uLevel: { value: 0 }, uPx: { value: renderer.getPixelRatio() } },
+    vertexShader: `attribute float seed; uniform float uTime, uPx; varying float vA;
+      void main(){ vec3 p = position; p.y = mod(p.y + uTime*(.05+seed*.12), 8.); p.x += sin(uTime*.3+seed*20.)*.25; p.z += cos(uTime*.25+seed*17.)*.25;
+        vec4 mv = modelViewMatrix*vec4(p,1.); gl_Position = projectionMatrix*mv; gl_PointSize = min((1.5+seed*2.5)*uPx*(6./-mv.z), 5.*uPx);
+        vA = (.35+.65*sin(uTime*(.6+seed)+seed*40.)*.5+.5) * smoothstep(0.,1.,p.y) * smoothstep(8.,6.,p.y) * smoothstep(1.5,4.,-mv.z); }`,
+    fragmentShader: `uniform float uLevel; varying float vA; void main(){ float d = length(gl_PointCoord-.5); float a = smoothstep(.5,.0,d); gl_FragColor = vec4(vec3(.55,.9,1.)*a*vA*uLevel*.8, 1.); }`,
+  }));
+  world.add(dust);
+}
+
+// --- central pedestal
+const pedestal = new THREE.Group(); world.add(pedestal);
+{
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.78, 1.02, 64), new THREE.MeshStandardMaterial({ color: '#0c1422', roughness: 0.22, metalness: 0.9 }));
+  body.position.y = 0.51;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.66, 0.04, 64), new THREE.MeshPhysicalMaterial({ color: '#0a1424', roughness: 0.05, metalness: 0.2, clearcoat: 1 }));
+  top.position.y = 1.04;
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.665, 0.012, 8, 96), new THREE.MeshBasicMaterial({ color: '#000', toneMapped: false }));
+  glow.rotation.x = Math.PI / 2; glow.position.y = 1.045;
+  const glow2 = glow.clone(); glow2.material = glow.material; glow2.scale.setScalar(1.17); glow2.position.y = 0.01;
+  pedestal.add(body, top, glow, glow2);
+  // holographic beam
+  const beamMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    uniforms: { uTime: { value: 0 }, uLevel: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `varying vec2 vUv; uniform float uTime, uLevel; void main(){ float a = pow(1.-vUv.y,2.)*.12; a *= .85+.15*sin(vUv.y*30.-uTime*3.); gl_FragColor = vec4(vec3(.37,.89,1.)*a*uLevel, 1.); }`,
+  });
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.6, 1.1, 48, 1, true), beamMat); beam.position.y = 1.6;
+  pedestal.add(beam);
+  anim.push(t => { glow.material.color.setRGB(.37, .89, 1).multiplyScalar(lightLevel * 2.6); beamMat.uniforms.uTime.value = t; beamMat.uniforms.uLevel.value = lightLevel; });
+}
+
+/* =========================================================================
+   4. RAY-BAN META STYLE GLASSES (procedural, generic, no trademarks)
+   ========================================================================= */
+function lensShape(cx, inset = 0) {
+  // wayfarer-like trapezoid lens outline, units in mm, centered at cx
+  const s = new THREE.Shape();
+  const wT = 25 - inset, wB = 21 - inset, hT = 19 - inset, hB = -19 + inset, r = 7 - inset * .6;
+  const dir = Math.sign(cx) || 1;
+  const pts = [[-wT, hT], [wT, hT], [wB, hB], [-wB + 2 * dir, hB]];
+  // rounded polygon
+  for (let i = 0; i < 4; i++) {
+    const p = pts[i], n = pts[(i + 1) % 4], pv = pts[(i + 3) % 4];
+    const v1 = new THREE.Vector2(pv[0] - p[0], pv[1] - p[1]).normalize(), v2 = new THREE.Vector2(n[0] - p[0], n[1] - p[1]).normalize();
+    const a = [p[0] + v1.x * r + cx, p[1] + v1.y * r], b = [p[0] + v2.x * r + cx, p[1] + v2.y * r];
+    if (i === 0) s.moveTo(a[0], a[1]); else s.lineTo(a[0], a[1]);
+    s.quadraticCurveTo(p[0] + cx, p[1], b[0], b[1]);
+  }
+  s.closePath(); return s;
+}
+function buildGlasses() {
+  // Smart-glasses wayfarer in transparent grey acetate with clear lenses (styled after the reference photo, no logos)
+  const g = new THREE.Group();
+  const acetate = new THREE.MeshPhysicalMaterial({ color: '#5e6670', roughness: 0.1, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
+    transparent: true, opacity: 0.7, envMapIntensity: 1.6, specularIntensity: 1 });
+  const core = new THREE.MeshStandardMaterial({ color: '#4d555f', roughness: 0.45, metalness: 0.5 }); // electronics seen through the temples
+  const lensMat = new THREE.MeshPhysicalMaterial({ color: '#eef6fb', roughness: 0.02, metalness: 0, transparent: true, opacity: 0.07,
+    envMapIntensity: 1.2, clearcoat: 1, depthWrite: false });
+  const ringMat = new THREE.MeshStandardMaterial({ color: '#c3cad3', roughness: 0.2, metalness: 1 });
+  const glassDark = new THREE.MeshPhysicalMaterial({ color: '#0a1020', roughness: 0.02, metalness: 0.4, clearcoat: 1 });
+  // front: strong wayfarer brow, end pieces flaring up at the outer top corners, keyhole-free bridge
+  const outer = new THREE.Shape();
+  outer.moveTo(-60, 22);
+  outer.quadraticCurveTo(0, 25, 60, 22);
+  outer.lineTo(72, 26); outer.quadraticCurveTo(78, 26, 77, 18); outer.lineTo(71, -10);
+  outer.quadraticCurveTo(68, -27, 52, -28); outer.lineTo(20, -28); outer.quadraticCurveTo(11, -27, 8, -12); outer.quadraticCurveTo(0, -6, -8, -12);
+  outer.quadraticCurveTo(-11, -27, -20, -28); outer.lineTo(-52, -28); outer.quadraticCurveTo(-68, -27, -71, -10);
+  outer.lineTo(-77, 18); outer.quadraticCurveTo(-78, 26, -72, 26); outer.lineTo(-60, 22);
+  outer.holes.push(lensShape(-36, 0), lensShape(36, 0));
+  const front = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 7, bevelEnabled: true, bevelThickness: 1.6, bevelSize: 1.4, bevelSegments: 3, curveSegments: 12 }), acetate);
+  front.position.z = -3.5; front.renderOrder = 1; g.add(front);
+  for (const cx of [-36, 36]) {
+    const lens = new THREE.Mesh(new THREE.ShapeGeometry(lensShape(cx, -1.4), 14), lensMat); lens.position.z = 0.2; lens.renderOrder = 2; g.add(lens);
+  }
+  // thick temples with visible inner electronics, hinge block, angled tips
+  for (const sx of [-1, 1]) {
+    const hinge = new THREE.Mesh(new RoundedBoxGeometry(9, 15, 14, 3, 3), acetate); hinge.position.set(sx * 72, 14, -8); g.add(hinge);
+    const t = new THREE.Mesh(new RoundedBoxGeometry(6.5, 14, 128, 3, 3), acetate);
+    t.position.set(sx * 73, 13, -78); t.rotation.y = sx * -0.035; t.renderOrder = 1; g.add(t);
+    const inside = new THREE.Mesh(new THREE.BoxGeometry(3, 8, 96), core); inside.position.set(sx * 73.2, 13, -70); inside.rotation.y = sx * -0.035; g.add(inside);
+    const tip = new THREE.Mesh(new RoundedBoxGeometry(5.5, 11, 36, 3, 2.5), acetate);
+    tip.position.set(sx * 76, -2, -150); tip.rotation.x = -0.5; g.add(tip);
+    const grille = new THREE.Mesh(new THREE.BoxGeometry(1, 3.2, 16), new THREE.MeshStandardMaterial({ color: '#2a323d', roughness: 0.6, metalness: 0.4 }));
+    grille.position.set(sx * 73, 5.5, -112); g.add(grille);
+  }
+  // round modules on both end pieces: camera (left) and capture LED (right), like the reference
+  const modules = [];
+  for (const sx of [-1, 1]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(4.4, 1.15, 12, 40), ringMat); ring.position.set(sx * 66, 14, 4.6); g.add(ring);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 1.6, 32), glassDark); lens.rotation.x = Math.PI / 2; lens.position.set(sx * 66, 14, 4.2); g.add(lens);
+    modules.push(lens);
+  }
+  const led = new THREE.Mesh(new THREE.CircleGeometry(1.3, 20), new THREE.MeshBasicMaterial({ color: '#223', toneMapped: false }));
+  led.position.set(66, 14, 5.1); g.add(led);
+  const camHi = new THREE.Mesh(new THREE.CircleGeometry(1.1, 16), new THREE.MeshBasicMaterial({ color: '#6f87b8', toneMapped: false, transparent: true, opacity: 0.8 }));
+  camHi.position.set(-65, 15.2, 5.1); g.add(camHi); // lens glint
+  g.scale.setScalar(0.001); // mm → m
+  g.userData = { led, hotspots: {
+    camera: new THREE.Vector3(-66, 14, 6), led: new THREE.Vector3(66, 14, 6),
+    mics: new THREE.Vector3(0, -6, 4), speakers: new THREE.Vector3(73, 2, -112),
+  } };
+  return g;
+}
+const glassesHolder = new THREE.Group(); glassesHolder.position.set(0, 1.62, 0); world.add(glassesHolder);
+let glasses = buildGlasses(); glasses.scale.setScalar(0.0082); glassesHolder.add(glasses);
+glassesHolder.scale.setScalar(0.0001);
+let glassesSpin = 0.35, glassesShow = 0;
+// scan plane
+const scanMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  uniforms: { uA: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+  fragmentShader: `varying vec2 vUv; uniform float uA; void main(){ float e = exp(-pow((vUv.x-.5)*16.,2.)); float grid = step(.92, fract(vUv.y*30.))*.4; gl_FragColor = vec4(vec3(.37,.89,1.)*(e*1.6+grid*e)*uA, 1.); }`,
+});
+const scanPlane = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 1.4), scanMat);
+scanPlane.rotation.y = Math.PI / 2; glassesHolder.add(scanPlane);
+let scanT = -1;
+function startScan() { scanT = 0; }
+anim.push((t, dt) => {
+  glassesHolder.scale.setScalar(Math.max(0.0001, ease(clamp(glassesShow, 0, 1))));
+  glassesHolder.rotation.y += dt * glassesSpin;
+  glassesHolder.position.y = 1.68 + Math.sin(t * 1.2) * 0.03;
+  if (scanT >= 0) {
+    scanT += dt / 2.6;
+    const s = scanT;
+    scanPlane.position.x = lerp(-0.62, 0.62, ease(clamp(s, 0, 1)));
+    scanPlane.position.z = 0; scanPlane.rotation.y = Math.PI / 2;
+    scanMat.uniforms.uA.value = Math.sin(clamp(s, 0, 1) * Math.PI);
+    glasses.userData.led.material.color.setRGB(1, 1, 1).multiplyScalar(s < 1 ? 2.5 * (0.5 + 0.5 * Math.sin(t * 18)) : 0.15);
+    if (s > 1) { scanT = -1; scanMat.uniforms.uA.value = 0; }
+  }
+});
+
+// --- floating callout labels (sprites)
+function labelSprite(text, sub, opts = {}) {
+  const w = 1024, h = sub ? 300 : 200;
+  const tex = makeCanvasTex(w, h, (g) => {
+    g.font = `400 ${opts.big ? 74 : 60}px Michroma, Arial Narrow, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(95,227,255,.9)'; g.shadowBlur = 24; g.fillStyle = '#eafaff';
+    g.fillText(text, w / 2, sub ? 105 : h / 2);
+    if (sub) { g.shadowBlur = 0; g.font = '500 44px Figtree, sans-serif'; g.fillStyle = '#8fdcff'; g.fillText(sub, w / 2, 220); }
+  });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 }));
+  const sc = opts.scale || 1; sp.scale.set(1.6 * sc, 1.6 * sc * h / w, 1); sp.renderOrder = 5;
+  return sp;
+}
+const callouts = [];
+function buildCallouts() {
+  const H = glasses.userData.hotspots;
+  const defs = [['FOTOCAMERA', H.camera, [-0.45, 0.32]], ['LED DI CATTURA', H.led, [0.45, 0.32]], ['MICROFONI', H.mics, [0, -0.36]], ['ALTOPARLANTI OPEN-EAR', H.speakers, [0.55, -0.12]]];
+  for (const [txt, p, off] of defs) {
+    const sp = labelSprite(txt, null, { scale: 0.42 }); world.add(sp);
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const ln = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: C_CYAN, transparent: true, opacity: 0, toneMapped: false }));
+    world.add(ln);
+    callouts.push({ sp, ln, p, off, a: 0, target: 0 });
+  }
+}
+function showCallouts(on, ms = 5000) { callouts.forEach(c => c.target = on ? 1 : 0); if (on && ms) setTimeout(() => showCallouts(false), ms); }
+const _wp = new THREE.Vector3(), _lp = new THREE.Vector3(), _camRight = new THREE.Vector3(), _camUp = new THREE.Vector3();
+anim.push((t, dt) => {
+  _camRight.setFromMatrixColumn(camera.matrixWorld, 0); _camUp.setFromMatrixColumn(camera.matrixWorld, 1);
+  for (const c of callouts) {
+    c.a = damp(c.a, c.target, 6, dt);
+    glasses.localToWorld(_wp.copy(c.p));
+    const lp = _lp.copy(_wp).addScaledVector(_camRight, c.off[0]).addScaledVector(_camUp, c.off[1]);
+    c.sp.position.copy(lp); c.sp.material.opacity = c.a;
+    c.ln.geometry.attributes.position.setXYZ(0, _wp.x, _wp.y, _wp.z); c.ln.geometry.attributes.position.setXYZ(1, lp.x, lp.y - 0.02, lp.z);
+    c.ln.geometry.attributes.position.needsUpdate = true; c.ln.material.opacity = c.a * 0.8;
+    c.sp.visible = c.ln.visible = c.a > 0.01;
+  }
+});
+
+// --- real product model (user-supplied Sketchfab asset) replaces the procedural placeholder
+async function loadProductGlasses() {
+  const gltf = await loadGltfJson('assets/glasses/rayban_meta.gltf.json');
+  const m = gltf.scene;
+  const greyAcetate = new THREE.MeshPhysicalMaterial({ color: '#434b56', roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
+    transparent: true, opacity: 0.8, envMapIntensity: 1.3, side: THREE.DoubleSide });
+  const clearLens = new THREE.MeshPhysicalMaterial({ color: '#eef6fb', roughness: 0.02, transparent: true, opacity: 0.08, envMapIntensity: 1.4, depthWrite: false, side: THREE.DoubleSide });
+  const camLens = new THREE.MeshPhysicalMaterial({ color: '#0a1020', roughness: 0.02, metalness: 0.4, clearcoat: 1 });
+  m.traverse(o => {
+    if (!o.isMesh) return;
+    const n = (o.material && o.material.name) || '';
+    if (/Plastic/i.test(n)) o.material = greyAcetate;                 // frame + temples → transparent grey (as in the reference photo)
+    else if (/^glass/i.test(n)) { o.material = clearLens; o.renderOrder = 3; }
+    else if (/camera lens/i.test(n)) o.material = camLens;
+    else if (o.material && o.material.transmission) { o.material.transmission = 0; }
+    if (o.material && o.material.map) { o.material.transparent = true; o.renderOrder = 4; }
+  });
+  // normalise: centre it, width ≈ 1.25 m on the pedestal, front facing +z
+  let box = new THREE.Box3().setFromObject(m); const size = box.getSize(new THREE.Vector3());
+  const wrap = new THREE.Group(); wrap.add(m);
+  if (size.z > size.x * 1.05) { m.rotation.y = Math.PI / 2; }
+  box = new THREE.Box3().setFromObject(wrap); const c = box.getCenter(new THREE.Vector3()); m.position.sub(c);
+  box = new THREE.Box3().setFromObject(wrap); const sz = box.getSize(new THREE.Vector3());
+  const k = 1.25 / sz.x; wrap.scale.setScalar(k);
+  if (TEST.get('gflip')) wrap.rotation.y = Math.PI;
+  // hotspots in wrapper space (front = +z): top outer corners, bridge, temple near the ear
+  const hx = sz.x / 2, hy = sz.y / 2, hz = sz.z / 2;
+  const led = new THREE.Mesh(new THREE.CircleGeometry(sz.x * 0.008, 16), new THREE.MeshBasicMaterial({ color: '#223', toneMapped: false }));
+  led.position.set(hx * 0.86, hy * 0.62, hz + 0.0005); wrap.add(led);
+  wrap.userData = { led, hotspots: {
+    camera: new THREE.Vector3(-hx * 0.86, hy * 0.62, hz), led: new THREE.Vector3(hx * 0.86, hy * 0.62, hz),
+    mics: new THREE.Vector3(0, -hy * 0.3, hz), speakers: new THREE.Vector3(hx * 0.98, hy * 0.2, -hz * 0.55),
+  } };
+  glassesHolder.remove(glasses); glasses = wrap; glassesHolder.add(wrap);
+}
+
+/* =========================================================================
+   5. SIX STATIONS
+   ========================================================================= */
+const STATION_R = 7.2;
+const STATIONS = [
+  { id: 'ai', name: 'AI LAB', sub: 'Assistente vocale', line: "Questo è l'AI Lab. Con gli occhiali fai domande all'assistente con la voce, senza prendere in mano il telefono. Qui potrai parlare direttamente con me.", status: 'Conversazione con Sofia tramite Claude: in sviluppo nella Fase 4 (serve il backend con la chiave API).' },
+  { id: 'pov', name: 'POV CAMERA', sub: 'Foto e video dal tuo sguardo', line: "Questa è la POV Camera. La fotocamera nella montatura scatta foto e registra video dal tuo punto di vista, a mani libere. Un LED avvisa chi ti sta intorno quando registri.", status: 'Fotocamera dello smartphone: Fase 5. Acquisizione dagli occhiali tramite Meta DAT: Fase 7, da verificare su hardware.' },
+  { id: 'tr', name: 'TRANSLATION PORTAL', sub: 'Traduzione vocale', line: "Benvenuto nel Translation Portal. Gli occhiali possono aiutarti a seguire una conversazione in un'altra lingua, con la traduzione che arriva direttamente all'orecchio. Qui proveremo una traduzione continua, senza premere pulsanti.", status: 'Traduzione continua con ascolto e voce: in sviluppo nella Fase 6.' },
+  { id: 'music', name: 'MUSIC STUDIO', sub: 'Audio open-ear', line: "Questo è il Music Studio. Gli altoparlanti sono vicini alle orecchie ma non le chiudono: ascolti musica e podcast e resti consapevole di quello che succede intorno a te.", status: 'Riproduzione musicale e uscita Bluetooth verso gli occhiali: Fase 5.' },
+  { id: 'call', name: 'COMMUNICATION HUB', sub: 'Chiamate a mani libere', line: "Nel Communication Hub scopri le chiamate a mani libere. Rispondi, parli e ascolti attraverso gli occhiali, mentre i microfoni riducono il rumore di fondo.", status: 'Avvio chiamate tramite il telefono, sempre con tua conferma: Fase 5.' },
+  { id: 'vision', name: 'VISION AI', sub: 'Capire ciò che vedi', line: "Questa è la Vision AI Experience. Adesso guarda qualcosa intorno a te. Scopriamo insieme cosa possiamo capire da quello che vedi.", status: 'Analisi delle immagini con Claude Vision: Fase 5 (serve il backend).' },
+];
+const stationGroup = new THREE.Group(); world.add(stationGroup);
+const hitTargets = [];
+const MUSIC = { on: false, bands: new Float32Array(18) };
+function emblemFor(id) {
+  const g = new THREE.Group();
+  const glow = (c, k = 2) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), toneMapped: false });
+  const chrome = new THREE.MeshStandardMaterial({ color: '#d8e4f0', roughness: 0.12, metalness: 1 });
+  const glassM = new THREE.MeshPhysicalMaterial({ color: '#103048', roughness: 0.05, transparent: true, opacity: 0.55, clearcoat: 1 });
+  let tick = () => {};
+  if (id === 'ai') {
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: '#5fe3ff', wireframe: true, transparent: true, opacity: 0.55, toneMapped: false }));
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 16), glow('#9ff0ff', 2.4));
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.008, 6, 96), glow('#5fe3ff', 2));
+    g.add(shell, core, halo);
+    tick = (t, a) => { shell.rotation.y = t * (0.3 + a); shell.rotation.x = t * 0.2; core.scale.setScalar(1 + 0.12 * Math.sin(t * 3) + a * 0.3); halo.rotation.x = Math.PI / 2 + Math.sin(t) * 0.4; halo.rotation.y = t * 0.6; };
+  } else if (id === 'pov') {
+    const rings = [];
+    for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.42 - i * 0.08, 0.03, 12, 64), chrome); r.position.z = i * 0.04; g.add(r); rings.push(r); }
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.2, 48), glassM); lens.position.z = 0.13; g.add(lens);
+    const iris = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.075, 48), glow('#5fe3ff', 2.5)); iris.position.z = 0.14; g.add(iris);
+    tick = (t, a) => { g.rotation.y = Math.sin(t * 0.5) * 0.5; rings.forEach((r, i) => r.rotation.z = t * (0.2 + i * 0.15) * (i % 2 ? -1 : 1)); iris.scale.setScalar(1 + a * 0.6 + 0.1 * Math.sin(t * 4)); };
+  } else if (id === 'tr') {
+    const r1 = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.022, 12, 96), glow('#5fe3ff', 2.2));
+    const r2 = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.022, 12, 96), glow('#ffffff', 1.8));
+    r1.position.x = -0.24; r2.position.x = 0.24; r1.rotation.y = 0.5; r2.rotation.y = -0.5;
+    const n = 70, pg = new THREE.BufferGeometry(), pp = new Float32Array(n * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: '#bff6ff', size: 0.03, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    g.add(r1, r2, pts);
+    tick = (t, a) => { for (let i = 0; i < n; i++) { const u = ((t * (0.25 + a * 0.4) + i / n) % 1); pp[i * 3] = lerp(-0.24, 0.24, u); pp[i * 3 + 1] = Math.sin(u * Math.PI * 2 + i) * 0.12 * Math.sin(u * Math.PI); pp[i * 3 + 2] = Math.cos(u * 9 + i) * 0.1 * Math.sin(u * Math.PI); } pg.attributes.position.needsUpdate = true; r1.rotation.z = t; r2.rotation.z = -t; };
+  } else if (id === 'music') {
+    const bars = []; const N = 18;
+    for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2; const b = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.4, 0.035), glow(i % 3 ? '#5fe3ff' : '#ffffff', 1.8)); b.position.set(Math.cos(a) * 0.36, 0, Math.sin(a) * 0.36); g.add(b); bars.push(b); }
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 48), chrome); g.add(disc);
+    tick = (t, a) => { bars.forEach((b, i) => { const v = MUSIC.on ? 0.2 + MUSIC.bands[i] * 2.4 : 0.25 + Math.abs(Math.sin(t * (3 + a * 3) + i * 1.7) * Math.sin(t * 1.3 + i)) * (0.9 + a); b.scale.y = v; }); g.rotation.y = t * 0.3; disc.rotation.x = 0.3 + Math.sin(t) * 0.1; };
+  } else if (id === 'call') {
+    const rs = []; for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.012, 8, 96), new THREE.MeshBasicMaterial({ color: '#5fe3ff', transparent: true, toneMapped: false, depthWrite: false })); g.add(r); rs.push(r); }
+    const node = new THREE.Mesh(new THREE.SphereGeometry(0.11, 32, 16), chrome); g.add(node);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 8), glow('#62f0b3', 2.5)); dot.position.set(0.08, 0.08, 0.06); g.add(dot);
+    tick = (t, a) => { rs.forEach((r, i) => { const u = (t * (0.45 + a * 0.4) + i / 3) % 1; r.scale.setScalar(1 + u * 2.2); r.material.opacity = (1 - u) * 1.4; r.material.color.setRGB(.37, .89, 1).multiplyScalar(1.6); }); g.rotation.y = Math.sin(t * 0.7) * 0.6; };
+  } else if (id === 'vision') {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.3, 48, 24), new THREE.MeshPhysicalMaterial({ color: '#0d1a2a', roughness: 0.1, metalness: 0.3, clearcoat: 1 }));
+    const iris = new THREE.Mesh(new THREE.RingGeometry(0.06, 0.15, 64), glow('#5fe3ff', 2.4)); iris.position.z = 0.302;
+    const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.055, 32), new THREE.MeshBasicMaterial({ color: '#000' })); pupil.position.z = 0.303;
+    const scan = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.006, 6, 96), glow('#ffffff', 2));
+    g.add(eye, iris, pupil, scan);
+    tick = (t, a) => { g.rotation.y = Math.sin(t * 0.6) * 0.7; g.rotation.x = Math.sin(t * 0.43) * 0.25; scan.rotation.x = Math.PI / 2; scan.position.y = Math.sin(t * (1.5 + a * 2)) * 0.3; scan.scale.setScalar(Math.cos(Math.asin(clamp(scan.position.y / 0.36, -1, 1)))); };
+  }
+  return { g, tick };
+}
+function buildStations() {
+  const N = STATIONS.length;
+  STATIONS.forEach((s, i) => {
+    const ang = THREE.MathUtils.degToRad(62 + i * (236 / (N - 1)));
+    s.angle = ang;
+    s.pos = new THREE.Vector3(Math.sin(ang) * STATION_R, 0, Math.cos(ang) * STATION_R);
+    const inward = s.pos.clone().normalize().negate();
+    const tangent = new THREE.Vector3(-inward.z, 0, inward.x);
+    // where Sofia stands and where the camera goes
+    s.stand = s.pos.clone().addScaledVector(inward, 1.25).addScaledVector(tangent, 0.72);
+    // frame Sofia and the emblem together (portrait friendly): aim between them, slightly low camera = more presence
+    const mid = s.pos.clone().lerp(s.stand, 0.5);
+    s.camPos = mid.clone().addScaledVector(inward, 3.9).addScaledVector(tangent, 0.35); s.camPos.y = 1.45;
+    s.camTarget = mid.clone(); s.camTarget.y = 0.98;
+    const grp = new THREE.Group(); grp.position.copy(s.pos); grp.rotation.y = ang + Math.PI; stationGroup.add(grp);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.85, 40), new THREE.MeshStandardMaterial({ color: '#0c1422', roughness: 0.25, metalness: 0.9 }));
+    base.position.y = 0.425; grp.add(base);
+    const cap = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.01, 6, 64), new THREE.MeshBasicMaterial({ color: '#000', toneMapped: false })); cap.rotation.x = Math.PI / 2; cap.position.y = 0.86; grp.add(cap);
+    const pad = new THREE.Mesh(new THREE.RingGeometry(0.9, 0.94, 64), new THREE.MeshBasicMaterial({ color: '#000', toneMapped: false, transparent: true, depthWrite: false })); pad.rotation.x = -Math.PI / 2; pad.position.y = 0.006; grp.add(pad);
+    const beamMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      uniforms: { uA: { value: 0 }, uTime: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+      fragmentShader: `varying vec2 vUv; uniform float uA, uTime; void main(){ float a = pow(1.-vUv.y, 1.6)*.3*(.75+.25*sin(vUv.y*40.-uTime*3.)); gl_FragColor = vec4(vec3(.37,.89,1.)*a*uA,1.); }` });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.9, 3.4, 40, 1, true), beamMat); beam.position.y = 1.7; grp.add(beam);
+    const em = emblemFor(s.id); em.g.position.y = 1.55; grp.add(em.g);
+    const label = labelSprite(s.name, s.sub, { scale: 1.45 }); label.position.set(0, 2.85, 0); grp.add(label);
+    const num = labelSprite('0' + (i + 1), null, { scale: 0.35 }); num.position.set(0, 3.42, 0); grp.add(num);
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 3.4, 12), new THREE.MeshBasicMaterial({ visible: false })); hit.position.y = 1.7; hit.userData.station = i; grp.add(hit); hitTargets.push(hit);
+    s.rt = { grp, cap, pad, beamMat, em, label, num, active: 0, focus: 0, reveal: 0 };
+  });
+  anim.push((t, dt) => STATIONS.forEach((s, i) => {
+    const r = s.rt;
+    r.focus = damp(r.focus, current.station === i ? 1 : 0, 4, dt);
+    const lvl = clamp(lightLevel * 1.5 - 0.5, 0, 1) * r.reveal;
+    r.em.tick(t + i * 1.7, r.focus);
+    r.em.g.scale.setScalar((0.001 + lvl) * (1 + r.focus * 0.25));
+    r.cap.material.color.setRGB(.37, .89, 1).multiplyScalar(lvl * (1.4 + r.focus * 1.4));
+    r.pad.material.color.setRGB(.37, .89, 1).multiplyScalar(lvl * (0.6 + r.focus * 1.6 + 0.3 * Math.sin(t * 2 + i)));
+    r.beamMat.uniforms.uA.value = lvl * (0.5 + r.focus * 0.9); r.beamMat.uniforms.uTime.value = t;
+    r.label.material.opacity = lvl * (current.station === null || current.station === i ? 1 : 0.35);
+    r.num.material.opacity = r.label.material.opacity * 0.8;
+  }));
+}
+
+/* =========================================================================
+   6. SOFIA — rigged human, mocap clips, morph faces, gaze, lip-sync
+   ========================================================================= */
+const VISEMES = ['AA_VI_00_Sil', 'AA_VI_01_PP', 'AA_VI_02_FF', 'AA_VI_03_TH', 'AA_VI_04_DD', 'AA_VI_05_KK', 'AA_VI_06_CH', 'AA_VI_07_SS', 'AA_VI_08_nn', 'AA_VI_09_RR', 'AA_VI_10_aa', 'AA_VI_11_E', 'AA_VI_12_I', 'AA_VI_13_O', 'AA_VI_14_U'];
+const V = { sil: 0, PP: 1, FF: 2, TH: 3, DD: 4, KK: 5, CH: 6, SS: 7, nn: 8, RR: 9, aa: 10, E: 11, I: 12, O: 13, U: 14 };
+
+const _sv1 = new THREE.Vector3(), _sv2 = new THREE.Vector3(), _sv3 = new THREE.Vector3(), _sv4 = new THREE.Vector3(), _sv5 = new THREE.Vector3(), _UP = new THREE.Vector3(0, 1, 0);
+const _qs1 = new THREE.Quaternion(), _qs2 = new THREE.Quaternion(), _qe = new THREE.Quaternion();
+const _sq1 = new THREE.Quaternion(), _sq2 = new THREE.Quaternion(), _sq3 = new THREE.Quaternion(), _sq4 = new THREE.Quaternion(), _sq5 = new THREE.Quaternion();
+// Mocap clips were cut at arbitrary lengths: find the frame whose pose best matches the first one and loop there,
+// and pin the hips horizontally so the body never slides or snaps back when a loop restarts.
+function makeSeamless(clip) {
+  const FPS = 24;
+  const hipPos = clip.tracks.find(t => t.name === 'Bip01.position');
+  if (hipPos) { const v = hipPos.values; for (let i = 0; i < v.length; i += 3) { v[i] = v[0]; v[i + 2] = v[2]; } }
+  if (clip.name === 'wave' || clip.name === 'cheer') return clip;
+  const qt = clip.tracks.filter(t => t.name.endsWith('.quaternion') && t.times.length > 2);
+  const frames = Math.round(clip.duration * FPS);
+  if (frames < 30) return clip;
+  const ints = qt.map(t => t.createInterpolant());
+  const sample = (k, f) => ints[k].evaluate(f / FPS);
+  const ref = qt.map((t, k) => Float32Array.from(sample(k, 0)));
+  let best = frames, bestErr = Infinity;
+  for (let f = Math.floor(frames * 0.55); f <= frames; f++) {
+    let err = 0;
+    for (let k = 0; k < qt.length; k++) { const q = sample(k, f), r = ref[k]; err += 1 - Math.abs(q[0] * r[0] + q[1] * r[1] + q[2] * r[2] + q[3] * r[3]); }
+    if (err < bestErr) { bestErr = err; best = f; }
+  }
+  const end = best / FPS;
+  for (const t of clip.tracks) {
+    const sz = t.getValueSize(), interp = t.createInterpolant(), n = best + 1;
+    const times = new Float32Array(n), vals = new Float32Array(n * sz);
+    for (let i = 0; i < n; i++) { times[i] = i / FPS; vals.set(interp.evaluate(Math.min(i / FPS, end)), i * sz); }
+    vals.set(vals.subarray(0, sz), (n - 1) * sz); // last frame = first frame → perfect wrap
+    t.times = times; t.values = vals;
+  }
+  clip.duration = end;
+  return clip;
+}
+// Artifact hosting serves no .glb/.bin, so models ship as glTF JSON with an embedded buffer.
+// Rebuild a binary GLB in memory (no data: URI fetches, which the page's security policy may block).
+function b64bytes(s) { const bin = atob(s.slice(s.indexOf(',') + 1)); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+async function loadGltfJson(url) {
+  const gj = await fetch(url).then(r => r.json());
+  const bin = b64bytes(gj.buffers[0].uri); delete gj.buffers[0].uri;
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(gj)); const jPad = (4 - jsonBytes.length % 4) % 4, bPad = (4 - bin.length % 4) % 4;
+  const total = 12 + 8 + jsonBytes.length + jPad + 8 + bin.length + bPad;
+  const glb = new ArrayBuffer(total), dv = new DataView(glb), u8 = new Uint8Array(glb);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+  dv.setUint32(12, jsonBytes.length + jPad, true); dv.setUint32(16, 0x4E4F534A, true); u8.set(jsonBytes, 20); u8.fill(0x20, 20 + jsonBytes.length, 20 + jsonBytes.length + jPad);
+  const o = 20 + jsonBytes.length + jPad; dv.setUint32(o, bin.length + bPad, true); dv.setUint32(o + 4, 0x004E4942, true); u8.set(bin, o + 8);
+  return new GLTFLoader().parseAsync(glb, '');
+}
+class Sofia {
+  constructor() {
+    this.root = new THREE.Group(); // +z = forward
+    this.yaw = 0; this.targetYaw = null;
+    this.morph = {}; this.w = {}; this.meshes = [];
+    this.vis = new Float32Array(15); this.visT = new Float32Array(15);
+    this.lookW = 0; this.lookYaw = 0; this.lookPitch = 0; this.lookTarget = null;
+    this.blinkT = 2; this.blinkV = 0; this.smile = 0.15; this.smileT = 0.15; this.brow = 0; this.browT = 0;
+    this.path = null; this.speed = 1.12; this.walking = false; this.onArrive = null;
+    this.talking = false; this.current = null; this.state = 'idle';
+  }
+  async load(manager) {
+    const base = 'assets/sofia/';
+    manager.itemStart('sofia');
+    const [gltf, mj] = await Promise.all([loadGltfJson(base + 'sofia.gltf.json'), fetch(base + 'sofia_morphs.json').then(r => r.json())]);
+    manager.itemEnd('sofia');
+    const mb = b64bytes(mj.data).buffer;
+    const tl = new THREE.TextureLoader(manager);
+    const tex = (n, srgb = true) => { const t = tl.load(base + n); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+    const T = {
+      head: tex('f153_head_color.jpg'), headN: tex('f153_head_normal.jpg', false),
+      body: tex('f153_body_color.jpg'), bodyN: tex('f153_body_normal.jpg', false),
+      op: tex('f153_opacity_color.png'), st: tex('f153_stetoskop_color.jpg'), stN: tex('f153_stetoskop_normal.jpg', false),
+    };
+    const model = gltf.scene;
+    model.scale.setScalar(0.01);
+    this.model = model;
+    const P = PROFILES[qActive];
+    const SkinMat = P.skinPhysical ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
+    this.mats = {
+      f153_head: new SkinMat({ name: 'head', map: T.head, normalMap: T.headN, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.52, metalness: 0, ...(P.skinPhysical ? { sheen: 0.25, sheenRoughness: 0.6, sheenColor: new THREE.Color('#ffd9c9') } : {}) }),
+      f153_body: new THREE.MeshStandardMaterial({ name: 'body', color: '#c9ccd2', map: T.body, normalMap: T.bodyN, roughness: 0.72, metalness: 0 }), // tone down the white coat so it doesn't glow
+      f153_opacity: new THREE.MeshStandardMaterial({ name: 'opacity', map: T.op, alphaTest: 0.42, transparent: false, side: THREE.DoubleSide, roughness: 0.6 }),
+      f153_stetoskop: new THREE.MeshStandardMaterial({ name: 'steth', map: T.st, normalMap: T.stN, roughness: 0.35, metalness: 0.4 }),
+    };
+    // sparse morph targets → shared morph attributes
+    let skinned = [];
+    model.traverse(o => {
+      if (o.isSkinnedMesh) skinned.push(o);
+      if (o.isBone) this[o.name] = o; // quick bone access
+    });
+    const count = skinned[0].geometry.attributes.position.count;
+    const morphAttrs = mj.targets.map(tg => {
+      const arr = new Float32Array(count * 3);
+      const idx = new Uint32Array(mb, tg.idxOffset, tg.count);
+      const d = new Float32Array(mb, tg.dataOffset, tg.count * 3);
+      for (let i = 0; i < tg.count; i++) { const v = idx[i] * 3; arr[v] = d[i * 3]; arr[v + 1] = d[i * 3 + 1]; arr[v + 2] = d[i * 3 + 2]; }
+      const a = new THREE.BufferAttribute(arr, 3); a.name = tg.name; return a;
+    });
+    for (const m of skinned) {
+      const mat = this.mats[m.material.name] || this.mats.f153_body;
+      m.material = mat;
+      if (m.material === this.mats.f153_stetoskop) m.visible = false; // VisionOttica uniform: no stethoscope
+      m.castShadow = true; m.receiveShadow = false; m.frustumCulled = false;
+      if (m.geometry.attributes.position.count === count) {
+        m.geometry.morphAttributes.position = morphAttrs; m.geometry.morphTargetsRelative = true;
+        m.updateMorphTargets();
+        this.meshes.push(m);
+      }
+    }
+    mj.targets.forEach((tg, i) => this.morph[tg.name] = i);
+    const eyeMat = new THREE.MeshPhysicalMaterial({ name: 'eyes', map: T.head, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.0 });
+    for (const m of skinned) {
+      if (m.material !== this.mats.f153_head || !m.geometry.index || !m.skeleton) continue;
+      const bones = m.skeleton.bones, eyeIdx = new Set([bones.indexOf(this.Bip01_LEye), bones.indexOf(this.Bip01_REye)].filter(i => i >= 0));
+      if (!eyeIdx.size) continue;
+      const g = m.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, idx = g.index.array;
+      const isEye = v => { let w = 0; for (let k = 0; k < 4; k++) if (eyeIdx.has(si.getComponent(v, k))) w += sw.getComponent(v, k); return w > 0.5; };
+      const rest = [], eye = [];
+      for (let t = 0; t < idx.length; t += 3) (isEye(idx[t]) && isEye(idx[t + 1]) && isEye(idx[t + 2]) ? eye : rest).push(idx[t], idx[t + 1], idx[t + 2]);
+      if (!eye.length) continue;
+      g.setIndex(rest.concat(eye)); g.clearGroups(); g.addGroup(0, rest.length, 0); g.addGroup(rest.length, eye.length, 1);
+      m.material = [this.mats.f153_head, eyeMat];
+    }
+    this.nMorph = mj.targets.length; this.influ = new Float32Array(this.nMorph);
+    // determine facing in rest pose → align so root +z is forward
+    model.updateMatrixWorld(true);
+    const toe = new THREE.Vector3(), heel = new THREE.Vector3();
+    this.Bip01_L_Toe0.getWorldPosition(toe); this.Bip01_L_Foot.getWorldPosition(heel);
+    const f = toe.sub(heel); f.y = 0; f.normalize();
+    const holder = new THREE.Group(); holder.add(model); holder.rotation.y = -Math.atan2(f.x, f.z);
+    this.root.add(holder);
+    // animations
+    for (const c of gltf.animations) makeSeamless(c);
+    this.mixer = new THREE.AnimationMixer(model);
+    this.actions = {};
+    for (const c of gltf.animations) this.actions[c.name] = this.mixer.clipAction(c);
+    this.mixer.addEventListener('finished', e => { if (e.action === this.current && this.onOnceDone) { const cb = this.onOnceDone; this.onOnceDone = null; cb(); } });
+    this.play('idle', 0);
+    this.headBone = this.Bip01_Head; this.neckBone = this.Bip01_Neck; this.eyes = [this.Bip01_LEye, this.Bip01_REye];
+    this.spine = this.Bip01_Spine2;
+    return this;
+  }
+  play(name, fade = 0.45, { once = false, offset = null, scale = 1 } = {}) {
+    const next = this.actions[name]; if (!next) return;
+    if (this.current === next && !once) return;
+    next.reset(); next.setEffectiveTimeScale(scale);
+    next.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); next.clampWhenFinished = once;
+    if (offset !== null) next.time = offset * next.getClip().duration;
+    next.play();
+    if (this.current && fade > 0) { next.fadeIn(fade); this.current.fadeOut(fade); } else if (this.current) this.current.stop();
+    this.current = next; this.state = name;
+  }
+  gesture(name, then = 'idle') { this.play(name, 0.4, { once: true }); this.onOnceDone = () => this.play(this.talking ? this.talkClip() : then, 0.5); }
+  talkClip() { const opts = ['talk1', 'talk2', 'talk3']; return opts[Math.floor(Math.random() * opts.length)]; }
+  startTalk(present = null) { this.talking = true; this.smileT = 0.28; if (!this.walking) this.play(present || this.talkClip(), 0.5, { offset: Math.random() * 0.5 }); }
+  stopTalk() { this.talking = false; this.smileT = 0.2; if (!this.walking && /talk|present/.test(this.state)) this.play('idle', 0.6); }
+  // --- locomotion along a polyline
+  walkTo(points, onArrive) {
+    this.path = points.map(p => new THREE.Vector3(p.x, 0, p.z)); this.onArrive = onArrive;
+    if (!this.walking) { this.walking = true; this.play('walk', 0.4, { scale: 1.0 }); }
+  }
+  faceToward(p) { const d = new THREE.Vector3().subVectors(p, this.root.position); this.targetYaw = Math.atan2(d.x, d.z); }
+  update(t, dt) {
+    // locomotion
+    if (this.walking && this.path) {
+      const tgt = this.path[0];
+      const d = _sv1.subVectors(tgt, this.root.position); d.y = 0;
+      const dist = d.length();
+      const want = Math.atan2(d.x, d.z);
+      let dy = ((want - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      this.yaw += clamp(dy, -3.2 * dt, 3.2 * dt);
+      const facing = Math.abs(dy) < 1.0 ? 1 : 0.25;
+      const step = Math.min(dist, this.speed * dt * facing);
+      this.root.position.addScaledVector(d.normalize(), step);
+      if (dist < 0.06) {
+        this.path.shift();
+        if (!this.path.length) {
+          this.walking = false; this.path = null;
+          this.play(this.talking ? this.talkClip() : 'idle', 0.5);
+          const cb = this.onArrive; this.onArrive = null; cb && cb();
+        }
+      }
+    } else if (this.targetYaw !== null) {
+      let dy = ((this.targetYaw - this.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      this.yaw += clamp(dy, -2.4 * dt, 2.4 * dt) * Math.min(1, Math.abs(dy) * 4);
+      if (Math.abs(dy) < 0.01) this.targetYaw = null;
+    }
+    this.root.rotation.y = this.yaw;
+    this.mixer.update(dt);
+    this.root.updateMatrixWorld(true);
+    this.updateGaze(dt);
+    this.updateFace(t, dt);
+  }
+  // --- additive world-space rotation on a bone (axis-agnostic, works with any rig orientation)
+  addWorldRot(bone, q, w) {
+    const pq = bone.parent.getWorldQuaternion(_sq1);
+    const qq = _sq2.identity().slerp(q, w);
+    const m = _sq3.copy(pq).invert().multiply(qq).multiply(pq);
+    bone.quaternion.premultiply(m);
+    bone.updateMatrixWorld(true);
+  }
+  updateGaze(dt) {
+    const target = this.lookTarget || camera.position;
+    const head = this.headBone.getWorldPosition(_sv2);
+    const dir = _sv3.subVectors(target, head);
+    const horiz = Math.hypot(dir.x, dir.z);
+    const fwd = this.yaw;
+    let yaw = ((Math.atan2(dir.x, dir.z) - fwd + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    const pitch = clamp(Math.atan2(dir.y, horiz), -0.35, 0.3);
+    const reachable = Math.abs(yaw) < 1.75;
+    yaw = clamp(yaw, -1.0, 1.0);
+    const wantW = (reachable ? 1 : 0) * (this.walking ? 0.35 : 1) * (this.lookEnabled === false ? 0 : 1);
+    this.lookW = damp(this.lookW, wantW, 3, dt);
+    this.lookYaw = damp(this.lookYaw, yaw, 5, dt); this.lookPitch = damp(this.lookPitch, pitch, 5, dt);
+    if (this.lookW < 0.01) return;
+    const qYaw = _sq4.setFromAxisAngle(_UP, this.lookYaw * this.lookW);
+    const fwdV = _sv4.set(Math.sin(fwd + this.lookYaw), 0, Math.cos(fwd + this.lookYaw));
+    const axis = _sv5.crossVectors(fwdV, _UP).normalize();
+    const qPitch = _sq5.setFromAxisAngle(axis, this.lookPitch * this.lookW);
+    const q = qPitch.multiply(qYaw);
+    this.addWorldRot(this.spine, q, 0.12);
+    this.addWorldRot(this.neckBone, q, 0.3);
+    this.addWorldRot(this.headBone, q, 0.45);
+    // small natural eye darts (saccades) so the gaze never looks frozen
+    this.sacT = (this.sacT || 0) - dt;
+    if (this.sacT <= 0) { this.sacT = 0.4 + Math.random() * 2.2; this.sacY = (Math.random() - 0.5) * 0.09; this.sacP = (Math.random() - 0.5) * 0.05; }
+    _qs1.setFromAxisAngle(_UP, this.sacY || 0).multiply(_qs2.setFromAxisAngle(axis, this.sacP || 0));
+    _qe.copy(q).multiply(_qs1);
+    for (const e of this.eyes) this.addWorldRot(e, _qe, 0.28);
+  }
+  setMorph(name, v) { const i = this.morph[name]; if (i !== undefined) this.influ[i] = v; }
+  updateFace(t, dt) {
+    // blink
+    this.blinkT -= dt;
+    if (this.blinkT <= 0) { this.blinkV = 1; this.blinkT = 2 + Math.random() * 3.5; if (Math.random() < 0.15) this.blinkT = 0.25; }
+    this.blinkV = Math.max(0, this.blinkV - dt * 7);
+    const blink = Math.sin(Math.min(1, this.blinkV) * Math.PI);
+    // expression
+    this.smile = damp(this.smile, this.smileT, 3, dt);
+    this.brow = damp(this.brow, this.browT, 6, dt);
+    if (this.talking && Math.random() < dt * 0.6) { this.browT = 0.35 + Math.random() * 0.3; setTimeout(() => this.browT = 0, 380); }
+    // visemes
+    for (let i = 0; i < 15; i++) this.vis[i] = damp(this.vis[i], this.visT[i], 22, dt);
+    this.influ.fill(0);
+    for (let i = 0; i < 15; i++) this.setMorph(VISEMES[i], this.vis[i]);
+    const open = this.vis[V.aa] * 0.25 + this.vis[V.O] * 0.12 + this.vis[V.E] * 0.08;
+    this.setMorph('AK_25_JawOpen', open);
+    const talkDamp = 1 - clamp(this.vis[V.U] + this.vis[V.O] + this.vis[V.PP], 0, 1) * 0.7;
+    this.setMorph('AK_44_MouthSmileLeft', this.smile * talkDamp); this.setMorph('AK_45_MouthSmileRight', this.smile * talkDamp);
+    this.setMorph('AK_07_CheekSquintLeft', this.smile * 0.5); this.setMorph('AK_08_CheekSquintRight', this.smile * 0.5);
+    const lid = Math.max(blink, 0.2 - this.smile * 0.1);
+    this.setMorph('AK_09_EyeBlinkLeft', lid); this.setMorph('AK_10_EyeBlinkRight', lid);
+    this.setMorph('AK_19_EyeSquintLeft', 0.18 + this.smile * 0.35); this.setMorph('AK_20_EyeSquintRight', 0.18 + this.smile * 0.35);
+    this.setMorph('AK_03_BrowInnerUp', this.brow * 0.6); this.setMorph('AK_04_BrowOuterUpLeft', this.brow); this.setMorph('AK_05_BrowOuterUpRight', this.brow);
+    for (const m of this.meshes) for (let i = 0; i < this.nMorph; i++) m.morphTargetInfluences[i] = this.influ[i];
+  }
+}
+
+/* =========================================================================
+   7. VOICE — Italian TTS + text-driven viseme timeline, resynced on word boundaries
+   ========================================================================= */
+function italianVisemes(text) {
+  // returns per-character [viseme, weight] tuned for Italian orthography
+  const s = text.toLowerCase();
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i], n = s[i + 1] || '', n2 = s[i + 2] || '';
+    let v = null, w = 0.7;
+    if ('aàá'.includes(c)) { v = V.aa; w = 1.25; }
+    else if ('eèé'.includes(c)) { v = V.E; w = 1.15; }
+    else if ('iìí'.includes(c)) { v = V.I; w = 1.0; if (/[aeiouàèéòó]/.test(n) && i > 0 && 'cg'.includes(s[i - 1])) { v = null; w = 0.15; } }
+    else if ('oòó'.includes(c)) { v = V.O; w = 1.2; }
+    else if ('uùú'.includes(c)) { v = V.U; w = 1.0; }
+    else if ('pbm'.includes(c)) { v = V.PP; w = 0.75; }
+    else if ('fv'.includes(c)) { v = V.FF; w = 0.75; }
+    else if ('td'.includes(c)) { v = V.DD; w = 0.6; }
+    else if (c === 'n') { v = (n === 'g' ? V.KK : V.nn); w = 0.55; }
+    else if (c === 'l') { v = V.nn; w = 0.55; }
+    else if (c === 'r') { v = V.RR; w = 0.55; }
+    else if ('sz'.includes(c)) { v = (c === 's' && n === 'c' && 'ei'.includes(n2)) ? V.CH : V.SS; w = 0.7; }
+    else if (c === 'c' || c === 'g') {
+      if (c === 'g' && n === 'n') { v = V.nn; w = 0.6; }
+      else if (c === 'g' && n === 'l' && n2 === 'i') { v = V.nn; w = 0.6; }
+      else if ('ei'.includes(n)) { v = V.CH; w = 0.7; }
+      else { v = V.KK; w = 0.6; }
+    }
+    else if (c === 'q' || c === 'k') { v = V.KK; w = 0.6; }
+    else if (c === 'h') { v = null; w = 0.05; }
+    else if (c === 'x') { v = V.KK; w = 0.9; }
+    else if (c === 'j' || c === 'y') { v = V.I; w = 0.7; }
+    else if (c === 'w') { v = V.U; w = 0.7; }
+    else if (c === ' ') { v = null; w = 0.35; }
+    else if (',;:'.includes(c)) { v = V.sil; w = 2.6; }
+    else if ('.!?…'.includes(c)) { v = V.sil; w = 4.2; }
+    else if ("'’".includes(c)) { v = null; w = 0.1; }
+    else if (/[0-9]/.test(c)) { v = V.E; w = 2.5; }
+    else { v = null; w = 0.2; }
+    // doubled consonants hold longer
+    if (v !== null && c === s[i - 1] && !'aeiou'.includes(c)) w *= 0.8;
+    out.push([v, w]);
+  }
+  return out;
+}
+class Voice {
+  constructor() {
+    this.ok = 'speechSynthesis' in window; this.voice = null; this.rate = 12.5; // weight units / sec (self-calibrating)
+    this.queue = []; this.active = null; this.cancelled = false; this.gen = 0;
+    if (this.ok) { this.pick(); speechSynthesis.addEventListener?.('voiceschanged', () => this.pick()); }
+  }
+  pick() {
+    const vs = speechSynthesis.getVoices().filter(v => /^it([-_]|$)/i.test(v.lang));
+    const score = v => (/google/i.test(v.name) ? 4 : 0) + (/elsa|isabella|alice|federica|paola|female|donna|it-it-x-itb|it-it-x-itc/i.test(v.name) ? 3 : 0) + (/natural|neural|online|enhanced|premium/i.test(v.name) ? 3 : 0) - (/male|cosimo|luca|diego|it-it-x-itd/i.test(v.name) ? 3 : 0) + (v.localService ? 1 : 0);
+    vs.sort((a, b) => score(b) - score(a));
+    this.voice = vs[0] || null;
+    $('voiceName').textContent = this.voice ? this.voice.name : (this.ok ? 'Predefinita del sistema (it-IT)' : 'Sintesi vocale non disponibile');
+  }
+  unlock() { if (!this.ok) return; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.lang = 'it-IT'; speechSynthesis.speak(u); } catch {} }
+  stop() { this.gen++; this.cancelled = true; if (window.VOBridge) VOBridge.stopSpeaking(); if (this.ok) speechSynthesis.cancel(); if (this.audio) this.audio.pause(); if (this.active) { const a = this.active; this.active = null; a.finish(true); } }
+  // --- pre-rendered neural voice (Piper "paola", generated offline): exact sentence timing + loudness envelope
+  async loadClips() {
+    try { const j = await fetch('assets/voice/voice.json').then(r => r.json()); this.clips = j.lines; this.envRate = j.envRate; $('voiceName').textContent = 'Sofia · voce neurale (Sara)'; } catch { this.clips = null; }
+  }
+  unlockAudio() {
+    if (!this.clips) return; this.audio = new Audio(); this.audio.preload = 'auto';
+    this.audio.src = 'assets/voice/' + this.clips.intro.file; this.audio.muted = true;
+    this.audio.play().then(() => { this.audio.pause(); this.audio.currentTime = 0; this.audio.muted = false; }).catch(() => { this.audio.muted = false; });
+  }
+  playClip(c, hooks = {}) {
+    this.stop(); this.cancelled = false; const gen = this.gen;
+    const a = this.audio || (this.audio = new Audio());
+    const sents = []; let from = 0;
+    for (const sn of c.sentences) {
+      const v = italianVisemes(sn.text); let acc = 0; const cum = v.map(([, w]) => { const x = acc; acc += w; return x; });
+      const at = c.text.indexOf(sn.text.slice(0, 12), from); const off = at < 0 ? from : at; from = off + sn.text.length;
+      sents.push({ ...sn, v, cum, total: acc, off });
+    }
+    return new Promise(resolve => {
+      const st = { done: false, amp: 0 };
+      const finish = cancel => { if (st.done) return; st.done = true; a.onended = a.onerror = null; if (cancel) a.pause(); sofia && sofia.visT.fill(0); if (this.active === st) this.active = null; resolve(!cancel && gen === this.gen); };
+      st.finish = finish;
+      st.tick = dt => {
+        if (st.done || a.paused) return;
+        const t = a.currentTime, tv = sofia.visT; tv.fill(0);
+        const e = c.env[Math.min(c.env.length - 1, Math.floor(t * this.envRate))] || 0;
+        st.amp = damp(st.amp, e, 30, dt);
+        const k = sents.findIndex(x => t >= x.start && t < x.start + x.dur);
+        if (k < 0) return;
+        const S = sents[k], p = (t - S.start) / S.dur, head = p * S.total;
+        let i = 0; while (i < S.cum.length - 1 && S.cum[i + 1] <= head) i++;
+        const gain = clamp(st.amp * 1.5, 0, 1);
+        const [v] = S.v[i];
+        if (v !== null && v !== V.sil) tv[v] = (v <= V.RR ? 0.8 : 1) * Math.max(0.35, gain);
+        let j = i + 1; while (j < S.v.length && S.v[j][0] === null) j++;
+        const frac = (head - S.cum[i]) / Math.max(0.01, S.v[i][1]);
+        if (j < S.v.length && S.v[j][0] !== null && S.v[j][0] !== V.sil && frac > 0.55) tv[S.v[j][0]] = Math.max(tv[S.v[j][0]], (frac - 0.55) * 1.3 * gain);
+        hooks.onProgress && hooks.onProgress(S.off + Math.round(p * S.text.length));
+      };
+      a.onended = () => finish(false);
+      a.onerror = () => { finish(true); this.say(c.text, hooks).then(resolve); };
+      a.src = 'assets/voice/' + c.file; a.currentTime = 0;
+      this.active = st;
+      a.play().then(() => hooks.onStart && hooks.onStart()).catch(() => { finish(true); this.say(c.text, hooks).then(resolve); });
+    });
+  }
+  // speak text sentence-by-sentence; resolves when done (or stopped)
+  async say(text, hooks = {}) {
+    this.stop(); this.cancelled = false; const gen = this.gen;
+    const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+    let spoken = '';
+    hooks.onStart && hooks.onStart();
+    for (const s of sentences) {
+      if (gen !== this.gen) break;
+      await this.saySentence(s.trim(), spoken, hooks, gen);
+      spoken += s;
+    }
+    if (gen === this.gen) { hooks.onEnd && hooks.onEnd(); }
+    return gen === this.gen;
+  }
+  saySentence(s, before, hooks, gen) {
+    return new Promise(resolve => {
+      const vis = italianVisemes(s);
+      const cum = []; let acc = 0; for (const [, w] of vis) { cum.push(acc); acc += w; }
+      const total = acc;
+      const st = { head: 0, started: false, t0: 0, done: false, mute: false };
+      const finish = (cancel) => {
+        if (st.done) return; st.done = true;
+        if (!cancel && st.started && !st.mute) { const el = (performance.now() - st.t0) / 1000; if (el > 0.6 && el < 30) this.rate = lerp(this.rate, clamp(total / el, 7, 22), 0.5); }
+        sofia && sofia.visT.fill(0);
+        if (this.active === st) this.active = null; resolve();
+      };
+      st.finish = finish;
+      st.tick = dt => {
+        if (!st.started || st.done) return;
+        st.head += dt * this.rate;
+        let i = 0; while (i < cum.length - 1 && cum[i + 1] <= st.head) i++;
+        const tv = sofia.visT; tv.fill(0);
+        if (st.head < total) {
+          const [v] = vis[i]; const frac = (st.head - cum[i]) / Math.max(0.01, vis[i][1]);
+          if (v !== null && v !== V.sil) tv[v] = v <= V.RR ? 0.75 : 0.95;
+          // anticipate next viseme (coarticulation)
+          let j = i + 1; while (j < vis.length && vis[j][0] === null) j++;
+          if (j < vis.length && vis[j][0] !== null && vis[j][0] !== V.sil && frac > 0.55) tv[vis[j][0]] = Math.max(tv[vis[j][0]], (frac - 0.55) * 1.3);
+        }
+        const shown = before.length + Math.min(s.length, Math.round(i));
+        hooks.onProgress && hooks.onProgress(shown);
+        if (st.mute && st.head >= total + 2) finish(false);
+      };
+      this.active = st;
+      const begin = () => { if (!st.started) { st.started = true; st.t0 = performance.now(); } };
+      if (window.VOBridge) {
+        const ok = VOBridge.speak(s, 'it-IT'); begin(); st.mute = !ok;
+        if (ok) { let seen = false; const poll = setInterval(() => { if (st.done || gen !== this.gen) return clearInterval(poll); const sp = VOBridge.isSpeaking(); if (sp) seen = true; else if (seen || performance.now() - st.t0 > 2500) { clearInterval(poll); finish(false); } }, 150); }
+      } else if (this.ok) {
+        const u = new SpeechSynthesisUtterance(s);
+        if (this.voice) u.voice = this.voice; u.lang = this.voice ? this.voice.lang : 'it-IT'; u.rate = 1.0; u.pitch = 1.0; u.volume = 1;
+        u.onstart = begin;
+        u.onboundary = e => { if (e.name === 'word' || e.charIndex > 0) { begin(); if (e.charIndex < cum.length) st.head = Math.max(st.head * 0.3 + cum[e.charIndex] * 0.7, cum[e.charIndex] - 0.4); } };
+        u.onend = () => finish(false);
+        u.onerror = () => { st.mute = true; begin(); };
+        speechSynthesis.speak(u);
+        // Android sometimes never fires onstart: fall back to timeline after a short wait
+        setTimeout(() => { if (!st.started && !st.done && gen === this.gen) { begin(); this.warnSilent(); } }, 1200);
+        // safety timeout
+        setTimeout(() => { if (!st.done && gen === this.gen && performance.now() - st.t0 > (total / 6) * 1000 + 4000) finish(false); }, (total / 6) * 1000 + 6000);
+      } else { st.mute = true; begin(); this.warnSilent(); }
+    });
+  }
+  tick(dt) { if (this.active) this.active.tick(dt); }
+  warnSilent() {
+    if (this.warned) return; this.warned = true;
+    const inApp = /; wv\)|Version\/[\d.]+ Chrome/i.test(navigator.userAgent);
+    $('voiceName').textContent = 'Non disponibile in questo browser';
+    toast(inApp ? "Qui la voce di sistema non è disponibile. Apri il link in Chrome per sentire Sofia." : "La sintesi vocale del dispositivo non risponde. Controlla il volume multimediale o apri il link in Chrome.", 9000);
+  }
+}
+
+/* =========================================================================
+   8. CAMERA DIRECTOR
+   ========================================================================= */
+const director = {
+  flight: null,
+  flyTo(pos, target, dur = 2.2) {
+    return new Promise(res => {
+      controls.enabled = false;
+      this.flight = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), d: dur, k: 0, res };
+    });
+  },
+  path(curve, lookFn, dur) { return new Promise(res => { controls.enabled = false; this.flight = { curve, lookFn, d: dur, k: 0, res }; }); },
+  update(dt) {
+    const f = this.flight; if (!f) return;
+    f.k = Math.min(1, f.k + dt / f.d); const e = ease(f.k);
+    if (f.curve) { camera.position.copy(f.curve.getPointAt(e)); controls.target.copy(f.lookFn(e)); }
+    else {
+      // arc a little upward through the move for a crane feel
+      camera.position.lerpVectors(f.p0, f.p1, e); camera.position.y += Math.sin(e * Math.PI) * 0.5;
+      controls.target.lerpVectors(f.t0, f.t1, e);
+    }
+    camera.lookAt(controls.target);
+    if (f.k >= 1) { this.flight = null; f.res(); }
+  },
+  cancel() { if (this.flight) { const r = this.flight.res; this.flight = null; r(); } },
+};
+
+/* =========================================================================
+   9. EXPERIENCE CONTROLLER — intro, free mode, guided tour, stations
+   ========================================================================= */
+let sofia = null;
+const voice = new Voice();
+const current = { station: null, mode: 'free', busy: false, introDone: false, tourGen: 0 };
+const HOME = new THREE.Vector3(1.45, 0, 1.55);
+const HOME_CAM = new THREE.Vector3(0.75, 1.62, 5.2);
+const HOME_TARGET = new THREE.Vector3(0.85, 1.05, 0.8);
+let subsOn = store('vo_cc') !== '0';
+
+// --- automatic cinematic framing: while Sofia speaks the camera slowly pushes in on her;
+//     any touch hands control back to the user for a few seconds
+const autoCam = { pos: HOME_CAM.clone(), target: HOME_TARGET.clone(), push: 1, manualUntil: 0 };
+const _ac1 = new THREE.Vector3(), _ac2 = new THREE.Vector3(), _ac3 = new THREE.Vector3(), _acP = new THREE.Vector3(), _acT = new THREE.Vector3();
+controls.addEventListener('start', () => { autoCam.manualUntil = Infinity; });
+controls.addEventListener('end', () => { autoCam.manualUntil = SIM.t + 7; });
+function setShot(pos, target, push) { autoCam.pos.copy(pos); autoCam.target.copy(target); autoCam.push = push; autoCam.manualUntil = 0; }
+function updateAutoCam(dt) {
+  if (!controls.enabled || director.flight || !sofia || !current.introDone || SIM.t < autoCam.manualUntil) return;
+  _acP.copy(autoCam.pos); _acT.copy(autoCam.target);
+  if (sofia.talking && !sofia.walking && autoCam.push > 0) {
+    const H = sofia.headBone.getWorldPosition(_ac1);
+    const d = _ac2.subVectors(autoCam.pos, H); d.y = 0; d.normalize();
+    const side = _ac3.set(-d.z, 0, d.x);
+    const cp = _ac1.clone().addScaledVector(d, 2.2).addScaledVector(side, 0.3); cp.y = H.y - 0.06;
+    const ct = H.clone().addScaledVector(side, -0.08); ct.y = H.y - 0.55;
+    _acP.lerp(cp, autoCam.push); _acT.lerp(ct, autoCam.push);
+  }
+  camera.position.x = damp(camera.position.x, _acP.x, 0.9, dt); camera.position.y = damp(camera.position.y, _acP.y, 0.9, dt); camera.position.z = damp(camera.position.z, _acP.z, 0.9, dt);
+  controls.target.x = damp(controls.target.x, _acT.x, 1.1, dt); controls.target.y = damp(controls.target.y, _acT.y, 1.1, dt); controls.target.z = damp(controls.target.z, _acT.z, 1.1, dt);
+}
+
+function showSub(text) {
+  const box = $('sub'); if (!text) { box.hidden = true; return; }
+  box.hidden = !subsOn; $('subTxt').innerHTML = `<span class="said"></span><span class="rest"></span>`;
+  $('subTxt').querySelector('.rest').textContent = text;
+  box.dataset.full = text;
+}
+function progressSub(n) {
+  const box = $('sub'); const full = box.dataset.full || ''; const p = $('subTxt');
+  const said = p.querySelector('.said'), rest = p.querySelector('.rest'); if (!said) return;
+  const k = full.indexOf(' ', n); const cut = k < 0 ? full.length : k;
+  said.textContent = full.slice(0, cut); rest.textContent = full.slice(cut);
+}
+async function sofiaSay(text, { present = null, gesture = null, clip = null } = {}) {
+  if (!sofia) return;
+  showSub(text);
+  if (gesture) sofia.gesture(gesture);
+  const hooks = { onStart: () => sofia.startTalk(gesture ? null : present), onProgress: n => progressSub(n), onEnd: () => {} };
+  const c = clip && voice.clips && voice.clips[clip];
+  if (c) text = c.text, showSub(text);
+  const done = c ? await voice.playClip(c, hooks) : await voice.say(text, hooks);
+  sofia.stopTalk(); sofia.visT.fill(0);
+  if (done) { progressSub(text.length); setTimeout(() => { if (!voice.active) $('sub').hidden = true; }, 2200); }
+  return done;
+}
+function routeTo(from, to) {
+  // avoid the central pedestal: insert a waypoint on a safe circle when the straight line crosses it
+  const a = new THREE.Vector2(from.x, from.z), b = new THREE.Vector2(to.x, to.z), ab = b.clone().sub(a);
+  const t = clamp(-a.dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
+  const closest = a.clone().addScaledVector(ab, t);
+  if (closest.length() > 1.6) return [to];
+  const angA = Math.atan2(from.x, from.z), angB = Math.atan2(to.x, to.z);
+  let mid = (angA + angB) / 2; if (Math.abs(angA - angB) > Math.PI) mid += Math.PI;
+  const w = new THREE.Vector3(Math.sin(mid) * 2.6, 0, Math.cos(mid) * 2.6);
+  return [w, to];
+}
+function sofiaWalk(to) {
+  return new Promise(res => {
+    if (sofia.root.position.distanceTo(to) < 0.25) return res();
+    sofia.walkTo(routeTo(sofia.root.position, to), res);
+  });
+}
+
+/* =========================================================================
+   13. REAL FUNCTIONS — functions popup + "Prova ora" panels
+   AI (chat, translation, vision) runs through the viewer's own Claude via the `sample` capability.
+   ========================================================================= */
+let sampleFn = null;
+(async () => { try { sampleFn = window.claude ? await claude.use('sample') : null; } catch { sampleFn = null; } $('fsAI').textContent = sampleFn ? 'Pronta' : 'Non disponibile qui'; })();
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const aiErr = e => ({ not_granted: "Serve il tuo consenso per usare l'AI: riprova e tocca Consenti.", rate_limited: "Troppe richieste in poco tempo: riprova tra qualche minuto.", sampling_disabled: "L'AI non è disponibile per questo account.", image_rejected: "Questa foto non è leggibile: provane un'altra.", images_unavailable: "Qui non posso analizzare immagini.", refused: "Non posso rispondere a questa richiesta." }[e && e.code] || "Si è interrotto qualcosa. Riprova.");
+const FACTS = `Ray-Ban Meta Gen 3 (presentati al Meta Connect, settembre 2026): fotocamera nella montatura per foto e video dal punto di vista di chi li indossa, LED che segnala la registrazione; altoparlanti open-ear vicino alle orecchie; 6 microfoni con riduzione del rumore; assistente Meta AI attivabile a voce ("Hey Meta") e nuovo tasto azione; chiamate e messaggi a mani libere tramite il telefono; musica e podcast; traduzione in tempo reale in alcune lingue; autonomia fino a circa 9 ore, fino a 50 ore con la custodia di ricarica; modelli Wayfarer, Aviator e Zena; disponibili anche con lenti graduate presso VisionOttica. Se non sei sicura di un dato (prezzi, disponibilità, paesi), dillo e invita a chiedere al personale del negozio.`;
+const SOFIA_RULES = `Sei Sofia, consulente virtuale dei negozi VisionOttica, dentro una dimostrazione dei Ray-Ban Meta. Rispondi SEMPRE in italiano, con tono caldo, naturale e umano, come una persona in negozio. Le tue risposte vengono lette ad alta voce: massimo 3 frasi brevi, niente elenchi, niente markdown, niente emoji. Non inventare funzioni. Distingui ciò che fanno gli occhiali da ciò che fa questa app dimostrativa. Fatti utili:\n${FACTS}`;
+
+function setFnStatus() {
+  const ok = store('vo_glasses') === 'audio';
+  $('fsG').textContent = ok ? 'Collegati' : 'Non collegati';
+  $('fsA').textContent = ok ? 'Occhiali' : 'Telefono';
+}
+function openFuncs() { setFnStatus(); $('funcs').hidden = false; $('modes').hidden = true; }
+$('fnClose').addEventListener('click', () => { $('funcs').hidden = true; if (current.station === null) $('modes').hidden = false; toast('Trascina per guardarti intorno. Tocca una stazione o Sofia.'); });
+$('fnTour').addEventListener('click', () => { $('funcs').hidden = true; $('modes').hidden = true; runTour(); });
+document.querySelectorAll('.fn-card').forEach(c => c.addEventListener('click', async () => {
+  const i = +c.dataset.st; $('funcs').hidden = true; current.mode = 'free';
+  openTry(STATIONS[i].id);               // the real function opens immediately…
+  focusStation(i, { quiet: true });       // …while Sofia walks there and introduces it briefly
+}));
+$('btnTry').addEventListener('click', () => { if (current.station !== null) openTry(STATIONS[current.station].id); });
+$('tyClose').addEventListener('click', () => closeTry());
+function closeTry() { $('try').hidden = true; $('tyBody').innerHTML = ''; stopMusic(); }
+
+// Sofia speaks a dynamic answer (device voice — pre-recorded neural voice only exists for fixed lines)
+async function sofiaReply(text) { if (!text) return; return sofiaSay(text.replace(/[*#_`]/g, ''), {}); }
+function speakIn(text, lang) {
+  if (window.VOBridge) { VOBridge.speak(text, lang); return; }
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = lang;
+  const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith(lang.slice(0, 2).toLowerCase()));
+  if (v) u.voice = v; speechSynthesis.speak(u);
+}
+// photos from the phone camera (file input with capture works in the artifact viewer)
+function pickPhoto() {
+  return new Promise(res => { const inp = $('pickPhoto'); inp.value = ''; inp.onchange = () => res(inp.files && inp.files[0] || null); inp.click(); });
+}
+let lastPhoto = null, photoBoard = null;
+function showPhotoInScene(file, stationIdx, labels = []) {
+  const url = URL.createObjectURL(file);
+  new THREE.TextureLoader().load(url, tex => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    if (photoBoard) { world.remove(photoBoard); photoBoard.traverse(o => { o.geometry && o.geometry.dispose(); if (o.material) { o.material.map && o.material.map.dispose(); o.material.dispose(); } }); }
+    const st = STATIONS[stationIdx]; const ar = tex.image.width / tex.image.height;
+    const h = 1.1, w = Math.min(1.9, h * ar);
+    const g = new THREE.Group();
+    const frame = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.06, h + 0.06), new THREE.MeshBasicMaterial({ color: new THREE.Color('#5fe3ff').multiplyScalar(1.6), toneMapped: false }));
+    const img = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); img.position.z = 0.005;
+    const scan = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.025), new THREE.MeshBasicMaterial({ color: new THREE.Color('#bff6ff').multiplyScalar(2.5), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending })); scan.position.z = 0.01;
+    g.add(frame, img, scan);
+    labels.slice(0, 5).forEach((t, k) => { const sp = labelSprite(String(t).toUpperCase().slice(0, 28), null, { scale: 0.55 }); sp.material.opacity = 1; sp.position.set((k % 2 ? 1 : -1) * (w / 2 + 0.25), h / 2 - 0.18 - k * 0.22, 0.05); g.add(sp); });
+    const inward = st.pos.clone().normalize().negate();
+    g.position.copy(st.pos).addScaledVector(inward, 0.4); g.position.y = 2.45;
+    g.lookAt(camera.position.x, 2.45, camera.position.z);
+    g.scale.setScalar(0.01); g.userData.t0 = SIM.t; g.userData.scan = scan; g.userData.h = h;
+    photoBoard = g; world.add(g);
+  });
+}
+anim.push((t) => { if (!photoBoard) return; const k = clamp((t - photoBoard.userData.t0) / 0.8, 0, 1); photoBoard.scale.setScalar(0.01 + ease(k) * 0.99); const sc = photoBoard.userData.scan; sc.position.y = Math.sin(t * 1.6) * photoBoard.userData.h / 2; });
+
+const PANELS = {
+  ai(body) {
+    $('tyT').textContent = 'PARLA CON SOFIA';
+    body.innerHTML = `<div id="chat" style="display:flex;flex-direction:column;gap:8px"><div class="bubble">Ciao! Chiedimi quello che vuoi sui Ray-Ban Meta: ti rispondo a voce.</div></div>
+      <div class="chips" id="sugg">${['Cosa posso fare con questi occhiali?', 'Come si scatta una foto?', 'Quanto dura la batteria?', 'Posso averli graduati?'].map(q => `<button class="chip2">${q}</button>`).join('')}</div>
+      <div class="row2"><input type="text" id="aiIn" placeholder="Scrivi o detta la tua domanda…" enterkeyhint="send" autocomplete="off"><button class="pill primary" id="aiGo">Invia</button></div>
+      <p class="hint2">Per parlare: tocca il microfono della tastiera del telefono e detta. Risposte generate da Claude in tempo reale.</p>`;
+    const turns = [];
+    const ask = async q => {
+      q = q.trim(); if (!q) return;
+      if (!sampleFn) { toast(window.VOBridge ? "Nell'app l'AI di Sofia arriva con il collegamento al server AI. Per ora provala dal link web." : "L'AI non è disponibile in questa visualizzazione. Apri il link in Chrome."); return; }
+      const chat = $('chat'); chat.insertAdjacentHTML('beforeend', `<div class="bubble me">${esc(q)}</div><div class="bubble" data-live>Sto pensando…</div>`);
+      const live = chat.querySelector('[data-live]'); live.removeAttribute('data-live'); live.scrollIntoView({ block: 'end' });
+      $('aiIn').value = ''; sofia.smileT = 0.3; sofia.play('listen', 0.4);
+      turns.push({ role: 'user', content: q });
+      try {
+        const { text } = await sampleFn([{ role: 'user', content: SOFIA_RULES }, ...turns.slice(-8)], { modelTier: 'quick', cache: false, onText: ({ text }) => { live.textContent = text; } });
+        turns.push({ role: 'assistant', content: text });
+        sofiaReply(text);
+      } catch (e) { live.textContent = e.text || aiErr(e); turns.pop(); sofia.play('idle', 0.5); }
+    };
+    $('aiGo').onclick = () => ask($('aiIn').value);
+    $('aiIn').onkeydown = e => { if (e.key === 'Enter') ask($('aiIn').value); };
+    body.querySelectorAll('#sugg .chip2').forEach(b => b.onclick = () => ask(b.textContent));
+  },
+  pov(body) {
+    $('tyT').textContent = 'FOTO E VIDEO';
+    body.innerHTML = `<p>Scatta una foto come faresti con gli occhiali: la vedrai comparire nello showroom.</p>
+      <button class="pill primary" id="povShot">📷 Scatta una foto</button>
+      ${window.VOBridge ? '<button class="pill" id="povGlasses">👓 Fotocamera degli occhiali (live)</button>' : ''}
+      <div id="povOut"></div>
+      <p class="hint2">${window.VOBridge ? "Live e scatti dagli occhiali usano il toolkit ufficiale Meta (DAT)." : "Ora usa la fotocamera del telefono. Lo scatto dagli occhiali arriva con l'app Android."}</p>`;
+    if ($('povGlasses')) $('povGlasses').onclick = () => VOBridge.openGlassesCamera();
+    $('povShot').onclick = async () => {
+      const f = await pickPhoto(); if (!f) return; lastPhoto = f; startScan();
+      showPhotoInScene(f, 1);
+      $('povOut').innerHTML = `<img alt="Foto scattata" src="${URL.createObjectURL(f)}"><div class="row2" style="margin-top:10px"><button class="pill primary" id="povAn">✨ Analizzala con Vision AI</button></div>`;
+      sofia.gesture('wave'); sofiaReply('Bellissima! Vuoi che ti dica cosa vedo in questa foto?');
+      $('povAn').onclick = () => { closeTry(); openTry('vision'); focusStation(5, { quiet: true }); setTimeout(() => runVision(lastPhoto), 300); };
+    };
+  },
+  tr(body) {
+    $('tyT').textContent = 'TRADUTTORE';
+    const L = [['en-US', 'Inglese'], ['fr-FR', 'Francese'], ['es-ES', 'Spagnolo'], ['de-DE', 'Tedesco'], ['zh-CN', 'Cinese'], ['it-IT', 'Italiano']];
+    let to = 'en-US';
+    body.innerHTML = `<div class="chips" id="trL">${L.map(([c, n]) => `<button class="chip2" data-l="${c}" aria-pressed="${c === to}">${n}</button>`).join('')}</div>
+      <div class="row2"><input type="text" id="trIn" placeholder="Scrivi o detta una frase…" enterkeyhint="go" autocomplete="off"><button class="pill primary" id="trGo">Traduci</button></div>
+      <div class="big-out" id="trOut"></div>
+      <button class="pill" id="trSay" hidden>🔊 Ascolta</button>
+      <p class="hint2">Traduce qualsiasi lingua in quella scelta e la pronuncia. La traduzione vocale continua (ascolto senza pulsanti) richiede il microfono degli occhiali: arriva con l'app Android.</p>`;
+    body.querySelectorAll('#trL .chip2').forEach(b => b.onclick = () => { to = b.dataset.l; body.querySelectorAll('#trL .chip2').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+    const go = async () => {
+      const q = $('trIn').value.trim(); if (!q) return;
+      if (!sampleFn) { toast("L'AI non è disponibile in questa visualizzazione."); return; }
+      const name = L.find(x => x[0] === to)[1];
+      $('trOut').textContent = 'Traduco…'; $('trSay').hidden = true;
+      try {
+        const { text } = await sampleFn(`Traduci il testo seguente in ${name}. Rispondi solo con la traduzione, senza virgolette né commenti.\n\nTesto:\n${q}`, { modelTier: 'quick', onText: ({ text }) => { $('trOut').textContent = text; } });
+        $('trOut').textContent = text; $('trSay').hidden = false; $('trSay').onclick = () => speakIn(text, to); speakIn(text, to);
+        sofia.smileT = 0.4; sofia.gesture('presentR');
+      } catch (e) { $('trOut').textContent = aiErr(e); }
+    };
+    $('trGo').onclick = go; $('trIn').onkeydown = e => { if (e.key === 'Enter') go(); };
+  },
+  music(body) {
+    $('tyT').textContent = 'MUSICA';
+    body.innerHTML = `<p>Ascolta come suonano gli altoparlanti open-ear. Con gli occhiali collegati, la musica esce da lì.</p>
+      <div class="row2"><button class="pill primary" id="muDemo">▶ Brano demo</button><button class="pill" id="muFile">🎵 Scegli dal telefono</button></div>
+      <div class="row2" style="align-items:center;gap:12px"><span>Volume</span><input type="range" id="muVol" min="0" max="1" step="0.01" value="0.8" style="flex:1"></div>
+      <button class="pill" id="muStop">■ Stop</button>
+      <p class="hint2" id="muNow">Il brano demo è generato dal vivo nel telefono. Tocca le barre luminose nello showroom: ballano con la musica.</p>`;
+    $('muDemo').onclick = () => playDemo();
+    $('muFile').onclick = () => { const inp = $('pickAudio'); inp.value = ''; inp.onchange = () => { const f = inp.files[0]; if (f) playFile(f); }; inp.click(); };
+    $('muStop').onclick = () => stopMusic();
+    $('muVol').oninput = e => { if (MU.gain) MU.gain.gain.value = +e.target.value; };
+  },
+  call(body) {
+    $('tyT').textContent = 'TELEFONO';
+    body.innerHTML = `<p>Con gli occhiali rispondi e parli a mani libere. Prova una chiamata dal telefono: l'audio passerà dagli occhiali collegati.</p>
+      <div class="row2"><input type="tel" id="clN" placeholder="Numero da chiamare" autocomplete="off"><a class="pill primary" id="clGo" href="#" style="text-decoration:none;display:inline-flex;align-items:center">📞 Chiama</a></div>
+      <p class="hint2">Se il pulsante non apre il telefono, copia il numero e chiamalo dall'app Telefono. Nessuna chiamata parte senza la tua conferma.</p>
+      <div class="bubble"><b>Comandi vocali degli occhiali</b><br>«Hey Meta, chiama Marco»<br>«Hey Meta, rispondi» · «Hey Meta, rifiuta»<br>«Hey Meta, invia un messaggio a Giulia»</div>`;
+    $('clN').oninput = e => { $('clGo').href = 'tel:' + e.target.value.replace(/[^0-9+]/g, ''); };
+    $('clGo').onclick = e => { if (!$('clN').value.trim()) { e.preventDefault(); toast('Scrivi prima un numero.'); } };
+  },
+  vision(body) {
+    $('tyT').textContent = 'VISION AI';
+    body.innerHTML = `<p>Fotografa qualcosa intorno a te — un oggetto, un'insegna, una montatura — e Sofia ti dice cosa vede.</p>
+      <button class="pill primary" id="viShot">✨ Scatta e analizza</button>
+      <div id="viOut"></div>
+      <p class="hint2">Analisi fatta da Claude Vision sulla foto del telefono. Con l'app Android potrà usare la fotocamera degli occhiali.</p>`;
+    $('viShot').onclick = async () => { const f = await pickPhoto(); if (f) { lastPhoto = f; runVision(f); } };
+  },
+};
+async function runVision(file) {
+  const out = $('viOut'); if (!out) return;
+  if (!sampleFn) { out.innerHTML = `<p class="hint2">L'AI non è disponibile in questa visualizzazione.</p>`; return; }
+  out.innerHTML = `<img alt="Foto da analizzare" src="${URL.createObjectURL(file)}"><p class="hint2">Analizzo l'immagine…</p>`;
+  showPhotoInScene(file, 5); startScan();
+  try {
+    const r = await sampleFn.json(`Sei Sofia, consulente VisionOttica. Guarda la foto e rispondi SOLO con un oggetto JSON: {"titolo": string (max 5 parole), "descrizione": string (2 frasi in italiano, tono caldo e naturale, da leggere ad alta voce), "etichette": string[] (3-5 elementi visibili, 1-3 parole ciascuno), "consiglio": string (1 frase; se c'è una montatura o degli occhiali, un consiglio di stile; altrimenti un modo in cui gli occhiali Ray-Ban Meta potrebbero aiutare in questa situazione)}. Non inventare dettagli che non si vedono.`, { images: [file] });
+    const labels = Array.isArray(r.etichette) ? r.etichette.map(String) : [];
+    out.innerHTML = `<img alt="Foto analizzata" src="${URL.createObjectURL(file)}"><div class="big-out">${esc(r.titolo || '')}</div><p>${esc(r.descrizione || '')}</p><div class="chips">${labels.map(l => `<span class="chip2">${esc(l)}</span>`).join('')}</div><div class="bubble">💡 ${esc(r.consiglio || '')}</div>`;
+    showPhotoInScene(file, 5, labels);
+    sofia.smileT = 0.45; sofiaReply(`${r.descrizione || ''} ${r.consiglio || ''}`);
+  } catch (e) { out.insertAdjacentHTML('beforeend', `<p class="hint2">${esc(aiErr(e))}</p>`); }
+}
+function openTry(id) { const body = $('tyBody'); stopMusic(); body.innerHTML = ''; PANELS[id] && PANELS[id](body); $('try').hidden = false; }
+
+// --- music engine: file playback or a generated demo loop, both through an analyser that drives the 3D bars
+const MU = { ctx: null, gain: null, an: null, el: null, src: null, timer: null, data: null };
+function muInit() {
+  if (MU.ctx) return; const AC = window.AudioContext || window.webkitAudioContext; MU.ctx = new AC();
+  MU.gain = MU.ctx.createGain(); MU.gain.gain.value = +($('muVol')?.value || 0.8);
+  MU.an = MU.ctx.createAnalyser(); MU.an.fftSize = 256; MU.data = new Uint8Array(MU.an.frequencyBinCount);
+  MU.gain.connect(MU.an); MU.an.connect(MU.ctx.destination);
+}
+function stopMusic() {
+  MUSIC.on = false; if (MU.timer) { clearInterval(MU.timer); MU.timer = null; }
+  if (MU.el) { MU.el.pause(); MU.el = null; }
+}
+function playFile(f) {
+  muInit(); stopMusic(); MU.ctx.resume();
+  const el = new Audio(URL.createObjectURL(f)); el.loop = true; MU.el = el;
+  MU.ctx.createMediaElementSource(el).connect(MU.gain); el.play(); MUSIC.on = true;
+  const n = $('muNow'); if (n) n.textContent = 'In riproduzione: ' + f.name;
+}
+function playDemo() {
+  muInit(); stopMusic(); MU.ctx.resume(); MUSIC.on = true;
+  const c = MU.ctx, bpm = 104, step = 60 / bpm / 2; let k = 0;
+  const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65], [52, 55, 59, 64]];
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const note = (m, t, d, type, vol) => { const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = hz(m); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0008, t + d); o.connect(g); g.connect(MU.gain); o.start(t); o.stop(t + d + 0.05); };
+  let next = c.currentTime + 0.05;
+  const sched = () => {
+    while (next < c.currentTime + 0.4) {
+      const ch = chords[Math.floor(k / 8) % 4];
+      note(ch[k % 4] + 12, next, step * 1.6, 'triangle', 0.12);                     // arpeggio
+      if (k % 8 === 0) ch.forEach(m => note(m, next, step * 8, 'sine', 0.05));      // pad
+      if (k % 2 === 0) note(ch[0] - 12, next, step * 1.2, 'sine', 0.22);             // bass pulse
+      if (k % 4 === 2) { const nb = c.createBufferSource(), b = c.createBuffer(1, c.sampleRate * 0.05, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length); nb.buffer = b; const g = c.createGain(); g.gain.value = 0.08; nb.connect(g); g.connect(MU.gain); nb.start(next); }
+      next += step; k++;
+    }
+  };
+  sched(); MU.timer = setInterval(sched, 120);
+  const n = $('muNow'); if (n) n.textContent = 'In riproduzione: brano demo VisionOttica (generato dal vivo).';
+}
+anim.push(() => { if (!MUSIC.on || !MU.an) return; MU.an.getByteFrequencyData(MU.data); for (let i = 0; i < 18; i++) MUSIC.bands[i] = damp(MUSIC.bands[i], MU.data[2 + i * 3] / 255, 18, 1 / 60); });
+
+// Android app: live DAT state pushed by the native layer (Meta Wearables Device Access Toolkit)
+window.voNative = { st: null, onStatus(st) {
+  this.st = st;
+  const txt = st.registered ? (st.active ? 'Occhiali connessi · Meta DAT' : 'App registrata · accendi gli occhiali') : (st.registering ? 'Registrazione in corso…' : 'Collega gli occhiali (Meta AI)');
+  $('devTxt').textContent = txt; $('devDot').classList.toggle('on', !!(st.registered && st.active));
+  if ($('fsG')) $('fsG').textContent = st.registered ? (st.active ? 'Connessi (DAT)' : 'Registrati') : 'Non collegati';
+} };
+function setStatusChip() {
+  if (window.VOBridge) { try { window.voNative.onStatus(JSON.parse(VOBridge.status())); } catch {} return; }
+  const ok = store('vo_glasses') === 'audio';
+  $('devTxt').textContent = ok ? 'Occhiali collegati · audio' : 'Collega gli occhiali';
+  $('devDot').classList.toggle('on', ok);
+}
+// Connection flow: a web page cannot pair or detect Bluetooth devices, so we guide the pairing and let the user confirm by ear.
+$('devChip').addEventListener('click', () => { if (window.VOBridge) { VOBridge.connectGlasses(); return; } $('connect').hidden = false; $('cnQ').hidden = $('cnAns').hidden = $('cnHelp').hidden = true; });
+$('cnClose').addEventListener('click', () => { $('connect').hidden = true; });
+const pickTab = b => { $('tabA').setAttribute('aria-selected', String(!b)); $('tabB').setAttribute('aria-selected', String(b)); $('stepsA').hidden = b; $('stepsB').hidden = !b; };
+$('tabA').addEventListener('click', () => pickTab(false)); $('tabB').addEventListener('click', () => pickTab(true));
+$('cnTest').addEventListener('click', async () => {
+  voice.unlockAudio && !voice.audio && voice.unlockAudio();
+  $('cnQ').hidden = $('cnAns').hidden = false;
+  if (sofia) sofiaSay("Ciao, sono Sofia. Tocca una stazione e ti mostro cosa possono fare gli occhiali.", { clip: 'greet' });
+});
+$('cnYes').addEventListener('click', () => { store('vo_glasses', 'audio'); setStatusChip(); $('connect').hidden = true; toast('Perfetto: Sofia ora parla negli occhiali.'); });
+$('cnNo').addEventListener('click', () => { store('vo_glasses', 'no'); setStatusChip(); $('cnHelp').hidden = false; });
+
+async function focusStation(i, { fromTour = false, quiet = false } = {}) {
+  const gen = ++current.tourGen * (fromTour ? 1 : 1);
+  if (!fromTour) current.mode = 'free';
+  if (fromTour) closeTry();
+  const s = STATIONS[i];
+  current.station = i; voice.stop(); sofia.stopTalk();
+  $('modes').hidden = true; $('sheet').hidden = false;
+  $('shK').textContent = `STAZIONE ${String(i + 1).padStart(2, '0')} / 06 · ${s.sub.toUpperCase()}`;
+  $('shT').textContent = s.name; $('shS').textContent = s.status;
+  $('btnNext').textContent = i < 5 ? '→' : '✓';
+  controls.minDistance = 1.6; controls.maxDistance = 7;
+  const fly = director.flyTo(s.camPos, s.camTarget, 2.4);
+  const walk = sofiaWalk(s.stand);
+  await Promise.all([fly, walk]);
+  controls.target.copy(s.camTarget); controls.enabled = true; setShot(s.camPos, s.camTarget, 0.45);
+  if (current.station !== i) return false;
+  sofia.faceToward(camera.position);
+  await sleep(350);
+  if (current.station !== i) return false;
+  // point toward the station emblem while introducing it
+  const side = new THREE.Vector3().subVectors(s.pos, sofia.root.position);
+  const rel = ((Math.atan2(side.x, side.z) - sofia.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  if (quiet) { sofia.gesture(rel > 0 ? 'presentL' : 'presentR'); return true; }
+  return await sofiaSay(s.line, { present: rel > 0 ? 'presentL' : 'presentR', clip: 'st_' + s.id });
+}
+async function backToShowroom() {
+  current.tourGen++; current.station = null; current.mode = 'free'; voice.stop(); sofia.stopTalk(); showSub(null);
+  $('sheet').hidden = true; $('modes').hidden = false; $('btnFree').setAttribute('aria-pressed', 'true');
+  controls.minDistance = 2.2; controls.maxDistance = 11;
+  await Promise.all([director.flyTo(HOME_CAM, HOME_TARGET, 2.2), sofiaWalk(HOME)]);
+  controls.target.copy(HOME_TARGET); controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 1);
+  sofia.faceToward(camera.position);
+}
+async function runTour() {
+  const gen = ++current.tourGen; current.mode = 'tour';
+  $('btnFree').setAttribute('aria-pressed', 'false');
+  for (let i = 0; i < STATIONS.length; i++) {
+    if (gen !== current.tourGen) return;
+    current.tourGen = gen; // keep generation
+    const ok = await focusStation(i, { fromTour: true });
+    if (!ok || gen !== current.tourGen) return;
+    await sleep(1300);
+  }
+  if (gen !== current.tourGen) return;
+  current.station = null; $('sheet').hidden = true;
+  await Promise.all([director.flyTo(HOME_CAM, HOME_TARGET, 2.6), sofiaWalk(HOME)]);
+  if (gen !== current.tourGen) return;
+  controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 0.6); sofia.faceToward(camera.position);
+  glassesSpin = 1.2; startScan(); showCallouts(true, 6000);
+  await sofiaSay("Il futuro non è qualcosa che devi immaginare. È qualcosa che puoi indossare. Adesso prova tu i Ray-Ban Meta.", { clip: 'tourEnd' });
+  if (gen !== current.tourGen) return;
+  glassesSpin = 0.35; sofia.gesture('cheer');
+  current.mode = 'free'; $('modes').hidden = false; $('btnFree').setAttribute('aria-pressed', 'true');
+}
+
+// --- cinematic intro (~20s), skippable
+let skipIntro = false;
+async function intro() {
+  current.busy = true; skipIntro = false; current.introDone = false;
+  const sk = $('btnSkip'); sk.hidden = false;
+  const flash = $('flash'), pulse = $('pulse'), card = $('tcard');
+  const A = (el, kf, o) => el.animate(kf, { fill: 'forwards', easing: 'cubic-bezier(.6,0,.2,1)', ...o });
+  // 1-2. black + light pulse
+  flash.style.opacity = 1;
+  A(pulse, [{ opacity: 0, transform: 'scaleX(0)' }, { opacity: 1, transform: 'scaleX(1)', offset: .55 }, { opacity: 0, transform: 'scaleX(1.1)' }], { duration: 1500 });
+  await wait(900); if (skipIntro) return; // the Skip button already called finishIntro()
+  // 3. wordmark
+  A(card, [{ opacity: 0, transform: 'scale(.96)' }, { opacity: 1, transform: 'scale(1)' }, { opacity: 1, offset: .75 }, { opacity: 0 }], { duration: 2600 });
+  await wait(1900); if (skipIntro) return; // the Skip button already called finishIntro()
+  // 4. fly through the entrance while the hall lights up
+  A(flash, [{ opacity: 1 }, { opacity: 0 }], { duration: 1400 });
+  sofia.root.visible = true; sofia.root.position.set(-1.2, 0, -9.5); sofia.yaw = 0.25; sofia.play('idle', 0);
+  const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 1.0, 14.6), new THREE.Vector3(0.2, 2.6, 11.2), new THREE.Vector3(-1.5, 2.9, 8.4), HOME_CAM.clone()], false, 'centripetal');
+  const look0 = new THREE.Vector3(0, 2.5, 0), look1 = HOME_TARGET.clone();
+  const flight = director.path(curve, e => look0.clone().lerp(look1, ease(e)), 7.5);
+  const lights = (async () => { const s = simNow(); while (lightLevel < 1 && !skipIntro) { lightLevel = clamp((simNow() - s) / 5200, 0, 1); await wait(16); } })();
+  await wait(3200); if (skipIntro) return; // the Skip button already called finishIntro()
+  // 5-8. glasses appear, rotate, scan reveals components
+  const g0 = simNow(); (async () => { while (glassesShow < 1 && !skipIntro) { glassesShow = clamp((simNow() - g0) / 1500, 0, 1); await wait(16); } })();
+  floorMat.uniforms.uPulse.value = 0; (async () => { const s = simNow(); while (!skipIntro && floorMat.uniforms.uPulse.value < 16) { floorMat.uniforms.uPulse.value = (simNow() - s) / 1000 * 6; await wait(16); } floorMat.uniforms.uPulse.value = -10; })();
+  await wait(1000); startScan(); showCallouts(true, 4200);
+  STATIONS.forEach((s, i) => setTimeout(() => { if (!skipIntro) s.rt.reveal = 1; }, 300 + i * 260));
+  // 9-10. Sofia enters from the back of the hall
+  sofiaWalk(HOME).then(() => sofia.faceToward(camera.position));
+  await flight; if (skipIntro) return; // the Skip button already called finishIntro()
+  controls.target.copy(HOME_TARGET);
+  await new Promise(r => { const c = () => (!sofia.walking || skipIntro) ? r() : setTimeout(c, 100); c(); });
+  if (skipIntro) return; // the Skip button already called finishIntro()
+  // 11-13. she looks at the client, smiles, waves and speaks
+  sofia.faceToward(camera.position); await wait(500);
+  sofia.smileT = 0.45; sofia.gesture('wave');
+  await wait(900); if (skipIntro) return; // the Skip button already called finishIntro()
+  sk.hidden = true;
+  current.introDone = true; current.busy = false; controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 1);
+  await sofiaSay("Benvenuto nel futuro della visione. Io sono Sofia, la tua consulente virtuale VisionOttica. Oggi non ti mostrerò semplicemente un paio di occhiali. Ti farò vivere quello che possono fare. Sei pronto a scoprire i Ray-Ban Meta?", { clip: 'intro' });
+  // 14. invite to interact
+  if (current.station === null && current.mode !== 'tour') { $('modes').hidden = false; toast('Trascina per guardarti intorno. Tocca una stazione, gli occhiali o Sofia.', 5000); }
+}
+function finishIntro() {
+  $('btnSkip').hidden = true; $('flash').getAnimations().forEach(a => a.cancel()); $('flash').style.opacity = 0;
+  $('tcard').getAnimations().forEach(a => a.cancel()); $('pulse').getAnimations().forEach(a => a.cancel());
+  director.cancel(); lightLevel = 1; glassesShow = 1; STATIONS.forEach(s => s.rt.reveal = 1);
+  camera.position.copy(HOME_CAM); controls.target.copy(HOME_TARGET); camera.lookAt(HOME_TARGET);
+  sofia.root.visible = true; sofia.walking = false; sofia.path = null; sofia.root.position.copy(HOME);
+  sofia.yaw = Math.atan2(camera.position.x - HOME.x, camera.position.z - HOME.z); sofia.targetYaw = null; sofia.play('idle', 0.3);
+  current.busy = false; controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 1); $('modes').hidden = false;
+  if (!current.introDone) { current.introDone = true; sofia.smileT = 0.4; sofia.gesture('wave'); setTimeout(() => sofiaSay("Ciao, sono Sofia. Tocca una stazione e ti mostro cosa possono fare gli occhiali.", { clip: 'greet' }), 700); }
+}
+
+/* =========================================================================
+   10. INPUT — tap vs drag, raycasting
+   ========================================================================= */
+const ray = new THREE.Raycaster(); const ndc = new THREE.Vector2();
+let down = null;
+canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener('pointerup', e => {
+  if (!down) return; const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y); const dt = performance.now() - down.t; down = null;
+  if (moved > 10 || dt > 600 || !current.introDone || current.busy) return;
+  const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const sofiaHit = sofiaPick && ray.intersectObject(sofiaPick, false)[0];
+  const st = ray.intersectObjects(hitTargets, false)[0];
+  const gl = ray.intersectObject(glassesPick, false)[0];
+  const hits = [sofiaHit && { k: 'sofia', d: sofiaHit.distance }, st && { k: 'st', d: st.distance, i: st.object.userData.station }, gl && { k: 'gl', d: gl.distance }].filter(Boolean).sort((a, b) => a.d - b.d);
+  const h = hits[0]; if (!h) return;
+  if (h.k === 'st') { if (current.station !== h.i) { current.mode = 'free'; focusStation(h.i); } }
+  else if (h.k === 'gl') { glassesSpin = 1.6; startScan(); showCallouts(true, 5500); sofia.lookTarget = glassesHolder.position.clone(); setTimeout(() => { glassesSpin = 0.35; sofia.lookTarget = null; }, 2600);
+    if (current.station === null) sofiaSay("Questi sono i Ray-Ban Meta. Fotocamera, microfoni e altoparlanti sono integrati in una montatura classica, che puoi avere anche con lenti graduate.", { present: 'presentL', clip: 'glasses' }); }
+  else if (h.k === 'sofia') { sofia.smileT = 0.5; sofiaSay(current.station === null ? "Sono qui per accompagnarti. Tocca una delle stazioni, oppure scegli il tour guidato e ti porto io." : "Vuoi sapere di più? Tra poco qui potrai provare la funzione dal vivo.", { gesture: current.station === null ? 'wave' : null, clip: current.station === null ? 'sofiaHome' : 'sofiaStation' }); }
+});
+let sofiaPick, glassesPick;
+
+/* =========================================================================
+   11. QUALITY APPLY + PERFORMANCE MONITOR
+   ========================================================================= */
+function applyQuality(name) {
+  qActive = name; const P = PROFILES[name];
+  renderer.setPixelRatio(Math.min(devicePixelRatio, P.dpr));
+  buildReflector(P.reflector);
+  floorMat.uniforms.uAlpha.value = P.reflector ? 0.72 : 0.0;
+  floorBase.material.roughness = P.reflector ? 0.42 : 0.3;
+  if (key.shadow.mapSize.x !== P.shadows) { key.shadow.mapSize.set(P.shadows, P.shadows); if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; } }
+  buildDust(P.particles);
+  resize();
+  document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.q === qMode)));
+  $('qNote').textContent = qMode === 'auto' ? `Automatica: ora ${P.label}. Scende da sola se il telefono rallenta.` : `Fissa su ${P.label}.`;
+}
+function resize() {
+  const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
+  const P = PROFILES[qActive]; bloom.resolution.set(w * P.bloomScale, h * P.bloomScale);
+  camera.aspect = w / h; camera.fov = w < h ? 62 : 50; camera.updateProjectionMatrix();
+  if (reflector) { const rt = reflector.getRenderTarget(); rt.setSize(Math.round(w * renderer.getPixelRatio() * P.reflector), Math.round(h * renderer.getPixelRatio() * P.reflector)); }
+  if (dust) dust.material.uniforms.uPx.value = renderer.getPixelRatio();
+}
+addEventListener('resize', resize);
+function uiScale() {
+  const dev = Math.min(screen.width || innerWidth, screen.height || innerHeight);
+  const k = isMobile && innerWidth > 480 ? clamp(innerWidth / 430, 1, 1.45) : 1;
+  document.documentElement.style.setProperty('--uiz', k);
+  for (const id of ['hud', 'gate', 'connect', 'funcs', 'try', 'toast', 'btnSkip']) { const el = $(id); if (el) el.style.zoom = k; }
+}
+uiScale(); addEventListener('resize', uiScale);
+const perf = { frames: 0, acc: 0, fps: 60, ft: 16, win: [], lastDrop: 0, assetBytes: 0, loadMs: 0, minFps: 99 };
+function perfTick(dt, t) {
+  perf.frames++; perf.acc += dt; perf.ft = lerp(perf.ft, dt * 1000, 0.1);
+  if (perf.acc >= 1) {
+    perf.fps = perf.frames / perf.acc; perf.frames = 0; perf.acc = 0; perf.win.push(perf.fps); if (perf.win.length > 3) perf.win.shift();
+    perf.minFps = Math.min(perf.minFps, perf.fps);
+    // adaptive: step down one profile when sustained < 40 fps (auto mode only)
+    if (qMode === 'auto' && t > 4 && perf.win.length === 3 && t - perf.lastDrop > 4) {
+      const avg = perf.win.reduce((a, b) => a + b) / 3; const i = ORDER.indexOf(qActive);
+      if (avg < 48 && i < ORDER.length - 1) { applyQuality(ORDER[i + 1]); perf.lastDrop = t; perf.win = []; toast(`Qualità adattata a ${PROFILES[qActive].label} per mantenere la fluidità`); }
+    }
+    if (!$('stats').hidden) {
+      const info = renderer.info; const mem = performance.memory ? (performance.memory.usedJSHeapSize / 1048576).toFixed(0) + ' MB' : 'n/d';
+      $('stats').textContent = `FPS    ${perf.fps.toFixed(0).padStart(3)}  (min ${perf.minFps.toFixed(0)})\nframe  ${perf.ft.toFixed(1).padStart(5)} ms\ndraws  ${String(info.render.calls).padStart(4)}\ntris   ${(info.render.triangles / 1000).toFixed(0).padStart(4)} k\nheap   ${mem}\nload   ${(perf.loadMs / 1000).toFixed(1)} s · ${(perf.assetBytes / 1048576).toFixed(1)} MB\nprof   ${PROFILES[qActive].label}${qMode === 'auto' ? ' (auto)' : ''}`;
+    }
+  }
+}
+
+/* =========================================================================
+   12. BOOT
+   ========================================================================= */
+const manager = new THREE.LoadingManager();
+manager.onProgress = (u, l, tot) => { $('barI').style.width = Math.round(l / tot * 100) + '%'; };
+async function boot() {
+  applyQuality(qActive);
+  try { await Promise.race([document.fonts.load('400 40px Michroma'), sleep(2500)]); await document.fonts.load('500 40px Figtree').catch(() => {}); } catch {}
+  logoImg = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'assets/brand/visionottica_logo_light.png'; });
+  buildScreen(); buildStations();
+  await loadProductGlasses().catch(e => console.warn('glasses model', e));
+  buildCallouts();
+  await voice.loadClips();
+  sofia = await new Sofia().load(manager);
+  scene.add(sofia.root); sofia.root.visible = false;
+  // proxy pick volume for Sofia
+  sofiaPick = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); sofiaPick.position.y = 0.9; sofia.root.add(sofiaPick);
+  glassesPick = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); glassesHolder.add(glassesPick);
+  perf.loadMs = performance.now() - t0Load;
+  perf.assetBytes = performance.getEntriesByType('resource').filter(r => /assets\//.test(r.name)).reduce((a, r) => a + (r.decodedBodySize || r.encodedBodySize || 0), 0);
+  renderer.compile(scene, camera);
+  $('barI').style.width = '100%'; $('gateHint').textContent = 'Showroom pronto.';
+  const btn = $('btnEnter'); btn.disabled = false; btn.focus();
+  window.__app = { THREE, scene, camera, sofia, voice, STATIONS, focusStation, finishIntro, director, controls, perf, renderer, applyQuality, runTour, backToShowroom };
+  window.__sim = SIM; window.__done = "ready";
+}
+$('btnEnter').addEventListener('click', () => {
+  voice.unlock(); voice.unlockAudio();
+  try { navigator.wakeLock?.request('screen').catch(() => {}); } catch {}
+  $('gate').style.opacity = 0; setTimeout(() => $('gate').hidden = true, 800);
+  $('hud').hidden = false; setStatusChip(); intro();
+});
+$('btnSkip').addEventListener('click', () => { skipIntro = true; voice.stop(); finishIntro(); });
+$('btnStop').addEventListener('click', () => { voice.stop(); sofia && sofia.stopTalk(); showSub(null); if (current.mode === 'tour') { current.tourGen++; current.mode = 'free'; } });
+$('btnCC').setAttribute('aria-pressed', String(subsOn));
+$('btnCC').addEventListener('click', () => { subsOn = !subsOn; store('vo_cc', subsOn ? '1' : '0'); $('btnCC').setAttribute('aria-pressed', String(subsOn)); if (!subsOn) $('sub').hidden = true; });
+$('btnSet').addEventListener('click', () => { const p = $('panel'); p.hidden = !p.hidden; $('btnSet').setAttribute('aria-pressed', String(!p.hidden)); });
+$('seg').addEventListener('click', e => { const q = e.target.dataset.q; if (!q) return; qMode = q; store('vo_q', q); perf.win = []; applyQuality(q === 'auto' ? (isMobile ? 'balanced' : 'ultra') : q); });
+$('tgStats').addEventListener('click', () => { const s = $('stats'); s.hidden = !s.hidden; $('tgStats').setAttribute('aria-pressed', String(!s.hidden)); });
+$('btnReplay').addEventListener('click', () => { $('panel').hidden = true; $('btnSet').setAttribute('aria-pressed', 'false'); current.tourGen++; voice.stop(); current.station = null; $('sheet').hidden = true; $('modes').hidden = true; lightLevel = 0; glassesShow = 0; STATIONS.forEach(s => s.rt.reveal = 0); camera.position.set(0, 1.0, 14.6); intro(); });
+$('btnTour').addEventListener('click', () => { $('modes').hidden = true; runTour(); });
+$('btnFree').addEventListener('click', () => { if (current.mode === 'tour') { current.tourGen++; voice.stop(); backToShowroom(); } current.mode = 'free'; $('btnFree').setAttribute('aria-pressed', 'true'); openFuncs(); });
+$('btnBack').addEventListener('click', () => { closeTry(); backToShowroom(); });
+$('btnNext').addEventListener('click', () => { const i = current.station; if (i === null) return; closeTry(); current.mode = 'free'; if (i < 5) focusStation(i + 1); else backToShowroom(); });
+
+// main loop
+const FDT = TEST.get('fdt') ? 1 / +TEST.get('fdt') : 0;
+const timer = new THREE.Timer(); timer.connect(document); let elapsed = 0;
+renderer.setAnimationLoop(() => {
+  timer.update(); const dt = FDT || Math.min(timer.getDelta(), 0.05); elapsed += dt; const t = elapsed;
+  SIM.t = t; if (SIM.waits.length) { const due = SIM.waits.filter(w => w.at <= t); SIM.waits = SIM.waits.filter(w => w.at > t); due.forEach(w => w.r()); }
+  renderer.info.reset();
+  director.update(dt);
+  updateAutoCam(dt);
+  if (controls.enabled) controls.update();
+  hemi.intensity = LIGHT_BASE.hemi * (0.15 + 0.85 * lightLevel); key.intensity = LIGHT_BASE.key * lightLevel; rim.intensity = LIGHT_BASE.rim * lightLevel; fill.intensity = LIGHT_BASE.fill * lightLevel; topSpot.intensity = LIGHT_BASE.top * clamp(glassesShow, 0, 1) * lightLevel;
+  scene.environmentIntensity = 0.1 + 0.55 * lightLevel;
+  floorMat.uniforms.uTime.value = t; floorMat.uniforms.uLevel.value = lightLevel;
+  if (dust) { dust.material.uniforms.uTime.value = t; dust.material.uniforms.uLevel.value = lightLevel; }
+  for (const f of anim) f(t, dt);
+  voice.tick(dt);
+  if (sofia) sofia.update(t, dt);
+  if (PROFILES[qActive].bloom) composer.render(dt); else renderer.render(scene, camera);
+  perfTick(dt, t);
+});
+boot().catch(e => { console.error(e); $('gateHint').className = 'err'; $('gateHint').textContent = 'Impossibile caricare lo showroom: ' + e.message; });
+</script>

@@ -1,0 +1,53 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK (Developer Mode credentials = 0)
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk ../VisionOttica-Meta.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VisionOttica-Meta-apk
+          path: VisionOttica-Meta.apk
+
+      - name: Publish to the "apk-latest" release (direct download from the phone)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: VisionOttica Meta — ultima build
+          prerelease: true
+          make_latest: false
+          body: |
+            APK di sviluppo (debug) generato automaticamente dal commit ${{ github.sha }}.
+            Installazione: scarica VisionOttica-Meta.apk dal telefono e consenti "Installa app sconosciute".
+            Gli occhiali richiedono la Modalità sviluppatore attiva nell'app Meta AI.
+          files: VisionOttica-Meta.apk
