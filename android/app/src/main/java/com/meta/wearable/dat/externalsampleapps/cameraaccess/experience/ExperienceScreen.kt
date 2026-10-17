@@ -29,12 +29,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesUiState
 import java.util.Locale
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private const val HOST = "appassets.androidplatform.net"
@@ -62,6 +64,9 @@ class VOBridge(
     private val onOpenGlassesCamera: () -> Unit,
     private val status: () -> String,
     private val tts: NativeVoice,
+    private val onWakeEnabled: (Boolean) -> Unit,
+    private val listener: () -> SofiaListener?,
+    private val js: (String) -> Unit,
 ) {
   private val main = Handler(Looper.getMainLooper())
 
@@ -77,6 +82,30 @@ class VOBridge(
   @JavascriptInterface fun stopSpeaking() = tts.stop()
 
   @JavascriptInterface fun isSpeaking(): Boolean = tts.isSpeaking()
+
+  // ---- "Ehi Sofia"
+  @JavascriptInterface fun setWakeEnabled(on: Boolean) = main.post { onWakeEnabled(on) }.let {}
+
+  @JavascriptInterface fun listenQuestion() = main.post { listener()?.listenQuestion() }.let {}
+
+  @JavascriptInterface fun resumeWake() = main.post { listener()?.resumeWake() }.let {}
+
+  @JavascriptInterface fun pauseWake(p: Boolean) = main.post { listener()?.pause(p) }.let {}
+
+  // ---- Sofia's Claude answers via the VisionOttica server
+  @JavascriptInterface fun hasAi(): Boolean = SofiaBrain.isConfigured
+
+  @JavascriptInterface
+  fun askSofia(id: Int, payloadJson: String) {
+    Thread {
+          val answer = SofiaBrain.ask(payloadJson)
+          val err = answer == null
+          main.post {
+            js("window.voNative && voNative.onAnswer($id, ${org.json.JSONObject.quote(answer ?: "")}, $err)")
+          }
+        }
+        .start()
+  }
 }
 
 /** Thin wrapper around Android TextToSpeech, preferring an Italian female voice when present. */
@@ -135,10 +164,15 @@ fun ExperienceScreen(
     uiState: WearablesUiState,
     onConnect: () -> Unit,
     onOpenGlassesCamera: () -> Unit,
+    onRequestRecordAudioPermission: suspend () -> Boolean,
     modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
+  val scope = rememberCoroutineScope()
   val voice = remember { NativeVoice(context) }
+  val webRef = remember { arrayOfNulls<WebView>(1) }
+  val runJs: (String) -> Unit = { code -> webRef[0]?.evaluateJavascript(code, null) }
+  val sofiaListener = remember { SofiaListener(context) { code -> webRef[0]?.evaluateJavascript(code, null) } }
   val latestState = remember { arrayOf(uiState) }
   latestState[0] = uiState
 
@@ -200,9 +234,20 @@ fun ExperienceScreen(
               onOpenGlassesCamera = onOpenGlassesCamera,
               status = { latestState[0].toBridgeJson() },
               tts = voice,
+              onWakeEnabled = { on ->
+                if (!on) sofiaListener.setEnabled(false)
+                else
+                    scope.launch {
+                      if (onRequestRecordAudioPermission()) sofiaListener.setEnabled(true)
+                      else runJs("window.voNative && voNative.onListen('denied')")
+                    }
+              },
+              listener = { sofiaListener },
+              js = runJs,
           ),
           "VOBridge",
       )
+      webRef[0] = this
       loadUrl(START_URL)
     }
   }
@@ -220,6 +265,7 @@ fun ExperienceScreen(
     onDispose {
       webView.onPause()
       voice.stop()
+      sofiaListener.destroy()
     }
   }
 

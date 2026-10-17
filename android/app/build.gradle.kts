@@ -45,6 +45,13 @@ android {
         localProperties.getProperty("mwdat_application_id", "0") // "0" = Developer Mode
     manifestPlaceholders["mwdat_client_token"] =
         localProperties.getProperty("mwdat_client_token", "0")
+
+    // Sofia's Claude answers go through the VisionOttica server (the API key never ships in the APK).
+    // From local.properties, or CI env vars SOFIA_ENDPOINT / SOFIA_APP_TOKEN (GitHub secrets).
+    val sofiaEndpoint = localProperties.getProperty("sofia_endpoint") ?: System.getenv("SOFIA_ENDPOINT") ?: ""
+    val sofiaToken = localProperties.getProperty("sofia_app_token") ?: System.getenv("SOFIA_APP_TOKEN") ?: ""
+    buildConfigField("String", "SOFIA_ENDPOINT", "\"$sofiaEndpoint\"")
+    buildConfigField("String", "SOFIA_APP_TOKEN", "\"$sofiaToken\"")
   }
 
   buildTypes {

@@ -56,6 +56,7 @@ fun AppRoot(
           else screen = "glasses"
         },
         onOpenGlassesCamera = { screen = "glasses" },
+        onRequestRecordAudioPermission = onRequestRecordAudioPermission,
     )
   } else {
     Box(modifier = Modifier.fillMaxSize()) {

@@ -31,6 +31,15 @@ Per la distribuzione in negozio servono `APPLICATION_ID` e `CLIENT_TOKEN` dal We
 - "Hey Meta, avvia VisionOttica" (Voice Invocations)
 - Tasto azione degli occhiali (Inputs), audio dai microfoni degli occhiali
 
+## "Ehi Sofia" e risposte con Claude (app)
+- Nell'app tocca il microfono in alto: Sofia ascolta. Di' **«Ehi Sofia»**, lei saluta e ascolta la domanda.
+- Senza server configurato Sofia risponde con le **risposte VisionOttica registrate** (batteria, lenti graduate, foto, privacy, traduzione, musica, modelli).
+- Con il server (`server/`, Vercel) risponde a qualsiasi domanda con **Claude API**:
+  1. Importa la cartella `server` come progetto su Vercel.
+  2. Variabili: `ANTHROPIC_API_KEY` (console.anthropic.com), `SOFIA_APP_TOKEN` (una password a piacere).
+  3. Nei *Secrets* del repository GitHub: `SOFIA_ENDPOINT` = `https://<progetto>.vercel.app/api/sofia`, `SOFIA_APP_TOKEN` = la stessa password.
+  4. La prossima build dell'APK userà il server.
+
 ## Aggiornare l'esperienza web dentro l'app
 ```
 python3 tools/sync_web_to_android.py <cartella three.js r186>

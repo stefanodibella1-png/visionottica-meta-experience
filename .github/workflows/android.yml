@@ -25,6 +25,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK (Developer Mode credentials = 0)
+        env:
+          SOFIA_ENDPOINT: ${{ secrets.SOFIA_ENDPOINT }}
+          SOFIA_APP_TOKEN: ${{ secrets.SOFIA_APP_TOKEN }}
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
