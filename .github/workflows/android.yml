@@ -34,8 +34,10 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug --stacktrace
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ../VisionOttica-Meta.apk
+      - name: Rename APK + version manifest for the in-app updater
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk ../VisionOttica-Meta.apk
+          echo '{"versionCode": ${{ github.run_number }}, "versionName": "0.8.${{ github.run_number }}"}' > ../version.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -51,6 +53,8 @@ jobs:
           make_latest: false
           body: |
             APK di sviluppo (debug) generato automaticamente dal commit ${{ github.sha }}.
-            Installazione: scarica VisionOttica-Meta.apk dal telefono e consenti "Installa app sconosciute".
+            Installazione: scarica VisionOttica-Meta.apk dal telefono e consenti "Installa app sconosciute". Dalla 0.8 l'app si aggiorna da sola.
             Gli occhiali richiedono la Modalità sviluppatore attiva nell'app Meta AI.
-          files: VisionOttica-Meta.apk
+          files: |
+            VisionOttica-Meta.apk
+            version.json

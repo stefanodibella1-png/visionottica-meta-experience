@@ -40,6 +40,25 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 private const val HOST = "appassets.androidplatform.net"
+
+private fun mimeFor(path: String): String =
+    when (path.substringAfterLast('.', "").lowercase()) {
+      "html" -> "text/html"
+      "js", "mjs" -> "text/javascript"
+      "json" -> "application/json"
+      "css" -> "text/css"
+      "png" -> "image/png"
+      "jpg", "jpeg" -> "image/jpeg"
+      "webp" -> "image/webp"
+      "svg" -> "image/svg+xml"
+      "mp3" -> "audio/mpeg"
+      "wav" -> "audio/wav"
+      "glb" -> "model/gltf-binary"
+      else -> "application/octet-stream"
+    }
+
+private fun isText(path: String) =
+    path.substringAfterLast('.', "").lowercase() in setOf("html", "js", "mjs", "json", "css", "svg")
 private const val START_URL = "https://$HOST/assets/web/index.html"
 
 /** JSON snapshot of the DAT state that the web layer shows in its status chip. */
@@ -187,10 +206,18 @@ fun ExperienceScreen(
       }
 
   val webView = remember {
+    // Serve bundled assets with explicit MIME types: ES modules are refused unless served as
+    // JavaScript, and a refused module leaves the page stuck on the loading screen.
+    val assets = context.assets
     val loader =
         WebViewAssetLoader.Builder()
             .setDomain(HOST)
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
+            .addPathHandler("/assets/") { path ->
+              runCatching {
+                    WebResourceResponse(mimeFor(path), if (isText(path)) "utf-8" else null, assets.open(path))
+                  }
+                  .getOrNull()
+            }
             .build()
     WebView(context).apply {
       settings.javaScriptEnabled = true

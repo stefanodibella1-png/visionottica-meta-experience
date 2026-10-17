@@ -46,6 +46,9 @@ fun AppRoot(
 
   BackHandler(enabled = screen != "experience") { screen = "experience" }
 
+  // Offers newer demo builds published on GitHub (no manual reinstall).
+  UpdatePrompt()
+
   if (screen == "experience") {
     ExperienceScreen(
         uiState = uiState,

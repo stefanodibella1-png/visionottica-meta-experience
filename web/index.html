@@ -307,7 +307,11 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 }}
 </script>
 <script>
-window.addEventListener('error', e => { const g = document.getElementById('gateHint'); if (g) { g.className = 'err'; g.textContent = 'Errore di avvio: ' + (e.message || e); } });
+// capture=true also catches failed <script type=module>/resource loads, which never reach window.onerror otherwise
+window.addEventListener('error', e => { const g = document.getElementById('gateHint'); if (!g || window.__done) return; if (!(e instanceof ErrorEvent) && !(e.target && e.target.tagName === 'SCRIPT')) return; // ignore fonts/images/audio g.className = 'err'; const src = e.target && (e.target.src || e.target.href); g.textContent = 'Errore di avvio: ' + (e.message || ('file non caricato ' + (src || ''))); }, true);
+window.addEventListener('unhandledrejection', e => { const g = document.getElementById('gateHint'); if (g && !window.__done) { g.className = 'err'; g.textContent = 'Errore di avvio: ' + ((e.reason && e.reason.message) || e.reason); } });
+window.__bootT0 = Date.now();
+setTimeout(() => { const g = document.getElementById('gateHint'); if (g && !window.__done && !window.__bootStarted) { g.className = 'err'; g.textContent = 'Il motore 3D non si è avviato. Chiudi e riapri l\'app; se si ripete, segnala questo messaggio.'; } }, 15000);
 </script>
 <script type="module">
 import * as THREE from 'three';
@@ -1937,14 +1941,17 @@ function perfTick(dt, t) {
 const manager = new THREE.LoadingManager();
 manager.onProgress = (u, l, tot) => { $('barI').style.width = Math.round(l / tot * 100) + '%'; };
 async function boot() {
+  window.__bootStarted = true; $('gateHint').textContent = 'Preparo lo showroom…';
   applyQuality(qActive);
-  try { await Promise.race([document.fonts.load('400 40px Michroma'), sleep(2500)]); await document.fonts.load('500 40px Figtree').catch(() => {}); } catch {}
+  try { await Promise.race([Promise.all([document.fonts.load('400 40px Michroma'), document.fonts.load('500 40px Figtree')]), sleep(2500)]); } catch {}
   logoImg = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'assets/brand/visionottica_logo_light.png'; });
   buildScreen(); buildStations();
   await loadProductGlasses().catch(e => console.warn('glasses model', e));
   buildCallouts();
   await voice.loadClips();
+  $('gateHint').textContent = 'Arriva Sofia…';
   sofia = await new Sofia().load(manager);
+  $('gateHint').textContent = 'Accendo le luci…';
   scene.add(sofia.root); sofia.root.visible = false;
   // proxy pick volume for Sofia
   sofiaPick = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 1.75, 8), new THREE.MeshBasicMaterial({ visible: false })); sofiaPick.position.y = 0.9; sofia.root.add(sofiaPick);

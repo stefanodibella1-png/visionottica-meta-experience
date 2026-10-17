@@ -33,8 +33,9 @@ android {
     applicationId = "it.visionottica.metaexperience"
     minSdk = 31
     targetSdk = 36
-    versionCode = 1
-    versionName = "0.7.0-fase7"
+    // every CI build gets a higher version so the in-app updater can detect it
+    versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+    versionName = "0.8.${System.getenv("GITHUB_RUN_NUMBER") ?: "dev"}"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -54,7 +55,18 @@ android {
     buildConfigField("String", "SOFIA_APP_TOKEN", "\"$sofiaToken\"")
   }
 
+  // Stable signature for the demo builds: Android only accepts an update signed with the same key.
+  signingConfigs {
+    create("demo") {
+      storeFile = rootDir.resolve("keystore/visionottica-demo.jks")
+      storePassword = "visionottica-demo"
+      keyAlias = "visionottica"
+      keyPassword = "visionottica-demo"
+    }
+  }
+
   buildTypes {
+    debug { signingConfig = signingConfigs.getByName("demo") }
     release {
       isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
