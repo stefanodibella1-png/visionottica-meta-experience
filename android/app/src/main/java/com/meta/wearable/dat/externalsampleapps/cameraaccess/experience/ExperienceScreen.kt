@@ -88,6 +88,7 @@ class VOBridge(
     private val js: (String) -> Unit,
     private val context: android.content.Context,
     private val requestPhotoPermission: ((Boolean) -> Unit) -> Unit,
+    private val takeGlassesPhoto: ((String?) -> Unit) -> Unit,
 ) {
   private val main = Handler(Looper.getMainLooper())
 
@@ -112,6 +113,26 @@ class VOBridge(
   }
 
   @JavascriptInterface fun cancelPhoto() = PhotoWatcher.cancel()
+
+  /** Photo taken by the app with the glasses camera (DAT). Result in voNative.onGlassesPhoto. */
+  @JavascriptInterface
+  fun glassesPhoto() =
+      main.post {
+        takeGlassesPhoto { url ->
+          js("window.voNative && voNative.onGlassesPhoto(${if (url == null) "null" else JSONObject.quote(url)})")
+        }
+      }.let {}
+
+  /**
+   * True while another app is playing audio (e.g. Meta AI answering through the glasses) or a call
+   * is up: lets Sofia wait until the glasses have finished talking.
+   */
+  @JavascriptInterface
+  fun externalAudio(): Boolean {
+    val am = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+    return am.isMusicActive || am.mode != android.media.AudioManager.MODE_NORMAL ||
+        am.activePlaybackConfigurations.isNotEmpty()
+  }
 
   @JavascriptInterface fun connectGlasses() = main.post { onConnect() }.let {}
 
@@ -227,6 +248,7 @@ fun ExperienceScreen(
     onConnect: () -> Unit,
     onOpenGlassesCamera: () -> Unit,
     onRequestRecordAudioPermission: suspend () -> Boolean,
+    takeGlassesPhoto: ((String?) -> Unit) -> Unit = { it(null) },
     modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -324,6 +346,7 @@ fun ExperienceScreen(
               listener = { sofiaListener },
               js = runJs,
               context = context,
+              takeGlassesPhoto = takeGlassesPhoto,
               requestPhotoPermission = { cb ->
                 val perm =
                     if (android.os.Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_IMAGES

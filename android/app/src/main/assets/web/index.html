@@ -1582,8 +1582,26 @@ function waitMeta(ms) {
 // wait for a photo the glasses just took (imported into the gallery by Meta AI); resolves with a data URL or null
 function waitPhoto(since, ms) {
   if (!(window.VOBridge && VOBridge.watchPhoto)) return sleep(ms).then(() => null);
-  return new Promise(res => { PHOTO.cb = url => res(url || null); VOBridge.watchPhoto(since, ms); PRACTICE.cancel = () => { PHOTO.cb = null; VOBridge.cancelPhoto && VOBridge.cancelPhoto(); res(null); }; });
+  return new Promise(res => { let done = false; const fin = u => { if (!done) { done = true; PHOTO.cb = null; res(u || null); } }; PHOTO.cb = fin; setTimeout(() => fin(null), ms + 4000); VOBridge.watchPhoto(since, ms); PRACTICE.cancel = () => { VOBridge.cancelPhoto && VOBridge.cancelPhoto(); fin(null); }; });
 }
+// wait until the glasses have answered: another app's audio starts (Meta AI talking in the glasses) and then
+// stays quiet for 2 s. Without that signal, fall back to a generous fixed pause.
+async function waitGlassesDone(alive) {
+  let probe = window.VOBridge && VOBridge.externalAudio ? () => { try { return VOBridge.externalAudio(); } catch { return null; } } : null;
+  const t0 = Date.now(); let started = false, quiet = 0;
+  // audio already busy before the visitor speaks (some phones report it all the time): the signal is useless
+  if (probe && probe() === true) { await sleep(1500); if (probe() === true) probe = null; }
+  while (alive()) {
+    await sleep(300);
+    const on = probe ? probe() : null, t = Date.now() - t0;
+    if (on === null) { if (t > 32000) break; continue; }
+    if (on) { started = true; quiet = 0; } else if (started) { quiet += 300; if (quiet >= 2000) break; }
+    if (!started && t > 35000) break;                           // nobody tried (or no signal): move on
+    if (t > 90000) break;
+  }
+  return alive();
+}
+function glassesPhotoShot() { return new Promise(res => { if (!(window.VOBridge && VOBridge.glassesPhoto)) { res(null); return; } PHOTO.gcb = res; VOBridge.glassesPhoto(); setTimeout(() => { if (PHOTO.gcb === res) { PHOTO.gcb = null; res(null); } }, 70000); }); }
 // returns true when Sofia should go on to the next station
 async function stationPractice(i, fromTour) {
   if (!window.VOBridge) return false;                         // web version: the visitor uses "Continua"
@@ -1599,19 +1617,30 @@ async function stationPractice(i, fromTour) {
     await sofiaSay('', { clip: 'musicOn' });
     await pause(22); stopMusic(); return alive();
   }
-  if (id === 'pov') {                                         // «Hey Meta, scatta una foto» → the photo pops up here
-    const url = await waitPhoto(Date.now() - 3000, 45000);
+  if (id === 'pov') {
+    // 1) «Hey Meta, scatta una foto»: if Meta AI imports it into the gallery, it pops up here
+    let url = await waitPhoto(Date.now() - 3000, 18000);
     if (!alive()) return false;
+    // 2) otherwise the app shoots one itself with the glasses camera (Meta DAT) and shows it
+    const st = window.voNative && voNative.st;
+    if (!url && st && st.registered) {
+      await sofiaSay('', { clip: 'povShot' }); if (!alive()) return false;
+      $('photoPop').hidden || 0; const waitPop = showPhotoPop(null, { wait: true }); $('phWait').textContent = '📸 Scatto con gli occhiali…';
+      url = await glassesPhotoShot(); if (!alive()) return false;
+      if (url) { $('phWait').hidden = true; $('phImg').hidden = false; $('phAn').hidden = false; $('phImg').src = url; sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); await waitPop; return alive(); }
+      $('phWait').textContent = 'Non sono riuscita a scattare dagli occhiali. Controlla che siano accesi e collegati.'; await waitPop; return alive();
+    }
     if (url) { const shown = showPhotoPop(null, { src: url }); sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); await shown; return alive(); }
     await sofiaSay('', { clip: 'done1' }); return alive();
   }
-  if (id === 'tr') {                                          // time to start the live translation, then write the phrase
-    if (!(await pause(14))) return false;
+  if (id === 'tr') {                                          // the glasses confirm the live translation, then write the phrase
+    if (!(await waitGlassesDone(alive))) return false;
     await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false;
     await translatorPop(); return alive();
   }
   // the glasses hear «Hey Meta…» and answer in the visitor's ears: give them time, without talking over them
-  if (!(await pause(20))) return false;
+  if (!(await waitGlassesDone(alive))) return false;
+  await sleep(600);
   await sofiaSay('', { clip: ['done1', 'done2', 'done3'][doneK++ % 3] });
   return alive();
 }
@@ -1905,6 +1934,7 @@ async function playTrack() {
 function stopMusic() {
   { const yt = $('muYt'); if (yt) yt.innerHTML = ''; }
   setMusicActive(false);
+  if (MU.ctx && MU.ctx.state === 'running') MU.ctx.suspend().catch(() => {});
   MUSIC.on = false; if (MU.timer) { clearInterval(MU.timer); MU.timer = null; }
   if (MU.el) { MU.el.pause(); MU.el = null; }
 }
@@ -1988,6 +2018,7 @@ window.voNative = { st: null,
     if (kind === 'music') startMusicNow();
     else if (kind === 'photo') photoFromGlasses(Date.now() - 3000);
   },
+  onGlassesPhoto(url) { const cb = PHOTO.gcb; PHOTO.gcb = null; if (cb) cb(url); },
   onPhoto(url, err) { const cb = PHOTO.cb; PHOTO.cb = null; if (cb) cb(url, err); },
   onAnswer(id, text, err) { const p = NATIVE_ASK.get(id); if (!p) return; NATIVE_ASK.delete(id); err ? p.rej({ code: 'upstream_error' }) : p.res(text); },
   onStatus(st) {
@@ -2016,7 +2047,7 @@ $('cnYes').addEventListener('click', () => { store('vo_glasses', 'audio'); setSt
 $('cnNo').addEventListener('click', () => { store('vo_glasses', 'no'); setStatusChip(); $('cnHelp').hidden = false; });
 
 async function focusStation(i, { fromTour = false, quiet = false } = {}) {
-  const gen = ++current.tourGen * (fromTour ? 1 : 1);
+  const gen = fromTour ? current.tourGen : ++current.tourGen;
   if (!fromTour) current.mode = 'free';
   if (fromTour) closeTry();
   const s = STATIONS[i];

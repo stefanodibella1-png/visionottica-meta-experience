@@ -119,7 +119,8 @@ fun CameraAccessScaffold(
           },
       )
 
-      if (BuildConfig.DEBUG) {
+      // MockDeviceKit (simulated glasses) is a developer tool: never shown in the VisionOttica demo.
+      if (false) {
         FloatingActionButton(
             onClick = { viewModel.showDebugMenu() },
             modifier = Modifier.align(Alignment.CenterEnd),

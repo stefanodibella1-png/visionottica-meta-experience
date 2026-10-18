@@ -31,7 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
+import com.meta.wearable.dat.externalsampleapps.cameraaccess.camera.CameraViewModel
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.ui.CameraAccessScaffold
+import kotlinx.coroutines.launch
 import com.meta.wearable.dat.externalsampleapps.cameraaccess.wearables.WearablesViewModel
 
 @Composable
@@ -43,6 +45,11 @@ fun AppRoot(
   val activity = LocalContext.current as Activity
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   var screen by rememberSaveable { mutableStateOf("experience") }
+  val scope = androidx.compose.runtime.rememberCoroutineScope()
+  val cameraViewModel: CameraViewModel =
+      androidx.lifecycle.viewmodel.compose.viewModel(
+          factory = CameraViewModel.Factory(application = activity.application, wearablesViewModel = viewModel),
+      )
 
   BackHandler(enabled = screen != "experience") { screen = "experience" }
 
@@ -60,6 +67,10 @@ fun AppRoot(
         },
         onOpenGlassesCamera = { screen = "glasses" },
         onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+        takeGlassesPhoto = { done ->
+          if (!uiState.isRegistered) done(null)
+          else scope.launch { done(runCatching { GlassesShot.take(cameraViewModel, onRequestWearablesPermission) }.getOrNull()) }
+        },
     )
   } else {
     Box(modifier = Modifier.fillMaxSize()) {
