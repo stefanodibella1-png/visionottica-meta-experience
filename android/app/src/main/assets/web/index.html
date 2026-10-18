@@ -1605,6 +1605,12 @@ function glassesPhotoShot() { return new Promise(res => { if (!(window.VOBridge 
 // returns true when Sofia should go on to the next station
 async function stationPractice(i, fromTour) {
   if (!window.VOBridge) return false;                         // web version: the visitor uses "Continua"
+  const id = STATIONS[i].id;
+  if (id === 'music') return stationPracticeInner(i, fromTour);
+  setStationQuiet(true);                                      // free the microphone for «Hey Meta»
+  try { return await stationPracticeInner(i, fromTour); } finally { setStationQuiet(false); }
+}
+async function stationPracticeInner(i, fromTour) {
   const id = STATIONS[i].id, gen = current.tourGen;
   const alive = () => current.station === i && gen === current.tourGen;
   const pause = async sec => { for (let k = 0; k < sec && alive(); k++) await sleep(1000); return alive(); };
@@ -1618,19 +1624,20 @@ async function stationPractice(i, fromTour) {
     await pause(22); stopMusic(); return alive();
   }
   if (id === 'pov') {
-    // 1) «Hey Meta, scatta una foto»: if Meta AI imports it into the gallery, it pops up here
-    let url = await waitPhoto(Date.now() - 3000, 18000);
+    // the visitor's own photo («Hey Meta, scatta una foto» or the capture button): Meta AI imports it
+    // into the phone gallery and it pops up here as soon as it arrives
+    const since = Date.now() - 5000;
+    const pop = showPhotoPop(null, { wait: true });
+    $('phWait').innerHTML = '📸 Scatta ora la tua foto con gli occhiali.<br><small>Appare qui appena l\'app Meta AI la importa nel telefono (può servire fino a un minuto). Se Android chiede l\'accesso alle foto, scegli «Consenti tutte».</small>';
+    let closed = false; pop.then(() => { closed = true; });
+    const url = await Promise.race([waitPhoto(since, 120000), pop.then(() => null)]);
     if (!alive()) return false;
-    // 2) otherwise the app shoots one itself with the glasses camera (Meta DAT) and shows it
-    const st = window.voNative && voNative.st;
-    if (!url && st && st.registered) {
-      await sofiaSay('', { clip: 'povShot' }); if (!alive()) return false;
-      $('photoPop').hidden || 0; const waitPop = showPhotoPop(null, { wait: true }); $('phWait').textContent = '📸 Scatto con gli occhiali…';
-      url = await glassesPhotoShot(); if (!alive()) return false;
-      if (url) { $('phWait').hidden = true; $('phImg').hidden = false; $('phAn').hidden = false; $('phImg').src = url; sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); await waitPop; return alive(); }
-      $('phWait').textContent = 'Non sono riuscita a scattare dagli occhiali. Controlla che siano accesi e collegati.'; await waitPop; return alive();
+    if (url && !closed) {
+      $('phWait').hidden = true; $('phImg').hidden = false; $('phAn').hidden = false; $('phImg').src = url;
+      sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' });
+      await pop; return alive();
     }
-    if (url) { const shown = showPhotoPop(null, { src: url }); sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); await shown; return alive(); }
+    if (!closed) { $('photoPop').hidden = true; if (PHOTO.close) PHOTO.close(); }
     await sofiaSay('', { clip: 'done1' }); return alive();
   }
   if (id === 'tr') {                                          // the glasses confirm the live translation, then write the phrase
@@ -1969,10 +1976,29 @@ anim.push(() => { if (!MUSIC.on || !MU.an) return; MU.an.getByteFrequencyData(MU
 // ---------- "Ehi Sofia" (Android app): native wake-word + speech recognition, Sofia answers out loud
 const wake = { on: false, turns: [], retry: 0 };
 function listenUI(txt) { const el = $('listen'); if (!txt) { el.hidden = true; return; } $('listenTxt').textContent = txt; el.hidden = false; }
+// «Hey Sofia» during the tour: pause it, answer, then resume from the interrupted station
+const TOUR = { resumeAt: null };
+function pauseTour() {
+  if (current.mode !== 'tour' || TOUR.resumeAt !== null) return;
+  TOUR.resumeAt = current.station === null ? 0 : current.station;
+  current.tourGen++; current.mode = 'paused'; current.station = null;   // stops every pending step of the tour
+  if (PRACTICE.cancel) PRACTICE.cancel(); stopMusic();
+  if (PHOTO.close) PHOTO.close();
+  if (!$('trPop').hidden) $('trPop').hidden = true;
+  setStationQuiet(false);
+  toast('⏸ Tour in pausa: chiedi pure a Sofia');
+}
+async function resumeTourIfPaused() {
+  if (TOUR.resumeAt === null) return;
+  const at = TOUR.resumeAt; TOUR.resumeAt = null;
+  await sofiaSay('', { clip: 'tourResume' });
+  runTour(at, true);
+}
 async function onWakeWord() {
   if (!sofia) return;
   // at the Music Studio "Hey Sofia, metti la musica" starts the track right away
   if (PRACTICE.waiter && current.station !== null && STATIONS[current.station].id === 'music') { PRACTICE.waiter('music', 'hey sofia'); return; }
+  pauseTour();
   voice.stop(); listenUI(null); sofia.smileT = 0.45; sofia.lookTarget = null;
   await sofiaSay('', { clip: 'wake', gesture: 'wave' });
   wake.retry = 0; listenUI('🎙 Ti ascolto…'); VOBridge.listenQuestion();
@@ -1981,7 +2007,7 @@ async function onHeardQuestion(q) {
   listenUI(null);
   if (!q || !q.trim()) {
     if (wake.retry++ < 1) { await sofiaSay('', { clip: 'again' }); listenUI('🎙 Ti ascolto…'); VOBridge.listenQuestion(); return; }
-    VOBridge.resumeWake(); return;
+    VOBridge.resumeWake(); resumeTourIfPaused(); return;
   }
   if (/\b(musica|canzone|brano|playlist)\b/i.test(q)) { window.voNative.onMetaCommand('music', q); return; }
   showSub('«' + q + '»'); sofia.play('listen', 0.4); listenUI('Sofia sta pensando…');
@@ -1992,6 +2018,7 @@ async function onHeardQuestion(q) {
     await sofiaAnswer(ans);
   } catch (e) { listenUI(null); await sofiaSay('', { clip: 'staff' }); }
   if (wake.on) VOBridge.resumeWake();
+  resumeTourIfPaused();
 }
 function setWake(on, quiet) {
   wake.on = on; $('btnWake').setAttribute('aria-pressed', String(on)); $('wakeLbl').textContent = on ? 'ACCESO' : 'SPENTO';
@@ -2052,7 +2079,7 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   if (fromTour) closeTry();
   const s = STATIONS[i];
   if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic();
-  setStationQuiet(STATIONS[i].id !== 'music');
+  setStationQuiet(false);
   current.station = i; voice.stop(); sofia.stopTalk();
   $('modes').hidden = true; $('sheet').hidden = false;
   $('shK').textContent = `STAZIONE ${String(i + 1).padStart(2, '0')} / 06 · ${s.sub.toUpperCase()}`;
@@ -2101,10 +2128,11 @@ async function backToShowroom() {
   controls.target.copy(HOME_TARGET); controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 1);
   sofia.faceToward(camera.position);
 }
-async function runTour() {
-  const gen = ++current.tourGen; current.mode = 'tour';
+async function runTour(start = 0, resumed = false) {
+  const gen = ++current.tourGen; current.mode = 'tour'; TOUR.resumeAt = null;
   $('btnFree').setAttribute('aria-pressed', 'false');
-  for (let i = 0; i < STATIONS.length; i++) {
+  if (!resumed && window.VOBridge && wake.on) { await sofiaSay('', { clip: 'tourHint' }); if (gen !== current.tourGen) return; }
+  for (let i = start; i < STATIONS.length; i++) {
     if (gen !== current.tourGen) return;
     current.tourGen = gen; // keep generation
     const ok = await focusStation(i, { fromTour: true });
