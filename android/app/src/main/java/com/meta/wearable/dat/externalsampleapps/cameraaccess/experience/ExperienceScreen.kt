@@ -223,6 +223,8 @@ fun ExperienceScreen(
       settings.javaScriptEnabled = true
       settings.domStorageEnabled = true
       settings.mediaPlaybackRequiresUserGesture = false
+      // The page sizes its own UI; the system font-size setting would enlarge it until panels overlap.
+      settings.textZoom = 100
       settings.allowFileAccess = false
       settings.allowContentAccess = false
       webViewClient =

@@ -3,7 +3,7 @@
   "greet": "Eccomi! Tocca una stazione, oppure apri le funzioni e prova tu.",
   "glasses": "Eccoli qui, i Ray-Ban Meta. Sembrano occhiali normali, vero? Eppure dentro ci sono fotocamera, microfoni e altoparlanti. E li facciamo anche con le tue lenti graduate.",
   "sofiaHome": "Sono qui per te! Scegli una stazione, oppure fai il tour con me: ti porto io.",
-  "sofiaStation": "Vuoi provarla? Tocca Prova ora e vediamo insieme come funziona.",
+  "sofiaStation": "Vuoi provarla? Tocca Prova ancora e vediamo insieme come funziona.",
   "tourEnd": "Ecco fatto! Il futuro non va immaginato: si indossa. Adesso tocca a te, provali!",
   "st_ai": "Benvenuto nell'AI Lab! Con gli occhiali chiedi tutto a voce, senza toccare il telefono. Vuoi provare? Fammi una domanda, ti rispondo io.",
   "st_pov": "Qui si fotografa con lo sguardo. La fotocamera è nella montatura: scatti a mani libere, e una lucina avvisa chi ti sta vicino. Dai, scatta una foto!",
@@ -30,5 +30,11 @@
   "faq_translate": "Gli occhiali possono tradurre una conversazione in tempo reale, in alcune lingue. Di': Hey Meta, avvia la traduzione in tempo reale.",
   "faq_music": "Gli altoparlanti sono vicini alle orecchie ma non le chiudono: ascolti musica e chiamate e senti anche quello che hai intorno.",
   "faq_styles": "Ci sono diversi modelli, come Wayfarer, Aviator e Zena, e tanti colori. Vieni, te li faccio provare!",
-  "faq_what": "Fanno foto e video dal tuo punto di vista, ti fanno ascoltare musica e telefonare a mani libere, e hanno un assistente a cui chiedere tutto a voce."
+  "faq_what": "Fanno foto e video dal tuo punto di vista, ti fanno ascoltare musica e telefonare a mani libere, e hanno un assistente a cui chiedere tutto a voce.",
+  "hm_ai": "Prova subito con gli occhiali. Di': Hey Meta, che tempo fa oggi?",
+  "hm_pov": "Prova subito con gli occhiali. Di': Hey Meta, scatta una foto!",
+  "hm_tr": "Prova subito con gli occhiali. Di': Hey Meta, avvia la traduzione in tempo reale.",
+  "hm_music": "Prova subito con gli occhiali. Di': Hey Meta, riproduci della musica.",
+  "hm_call": "Prova subito con gli occhiali. Di': Hey Meta, chiama, e poi il nome di un tuo contatto.",
+  "hm_vision": "Prova subito con gli occhiali. Di': Hey Meta, guarda e dimmi cosa vedi."
 }

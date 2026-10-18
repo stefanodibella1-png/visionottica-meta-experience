@@ -9,7 +9,7 @@ lines = json.load(open(lines_path)); os.makedirs(out, exist_ok=True); tmp = out 
 M = model_dir.rstrip('/'); KOKORO = 'kokoro' in os.path.basename(M); name = os.path.basename(M).replace('vits-piper-', '')
 def synth(text, path):
     # Piper reads "VisionOttica" better split; the "Ray-Ban" brand needs the English pronunciation hint
-    say = text.replace('VisionOttica', 'Vision Ottica').replace('Ray-Ban', 'Rèi Ben').replace('POV', 'P O V').replace('AI Lab', 'Ei Ai Lab').replace('Vision AI', 'Vision Ei Ai').replace('LED', 'led')
+    say = text.replace('VisionOttica', 'Vision Ottica').replace('Ray-Ban', 'Rèi Ben').replace('POV', 'P O V').replace('AI Lab', 'Ei Ai Lab').replace('Vision AI', 'Vision Ei Ai').replace('LED', 'led').replace('Hey Meta', 'Ehi Meta')
     if KOKORO:
         args = [tts_bin, f'--kokoro-model={M}/model.onnx', f'--kokoro-voices={M}/voices.bin', f'--kokoro-tokens={M}/tokens.txt',
                 f'--kokoro-data-dir={M}/espeak-ng-data', '--kokoro-lang=it', '--sid=35', '--kokoro-length-scale=0.97']
