@@ -1449,15 +1449,16 @@ function progressSub(n) {
   said.textContent = full.slice(0, cut); rest.textContent = full.slice(cut);
 }
 // while music plays the speech recognizer stays off: its restarts steal audio focus and make the track stutter
-let musicActive = false;
-function setMusicActive(on) {
-  if (on === musicActive) return; musicActive = on;
-  if (window.VOBridge && VOBridge.pauseWake) VOBridge.pauseWake(on);
-}
+let musicActive = false, stationQuiet = false;
+const micHeld = () => musicActive || stationQuiet;
+function syncMic() { if (window.VOBridge && VOBridge.pauseWake) VOBridge.pauseWake(micHeld()); }
+function setMusicActive(on) { if (on === musicActive) return; musicActive = on; syncMic(); }
+// at the stations the phone stops listening, otherwise it can take the glasses' microphone and «Hey Meta» stops working
+function setStationQuiet(on) { if (on === stationQuiet) return; stationQuiet = on; syncMic(); }
 async function sofiaSay(text, opts = {}) {
   // never let the wake-word listener hear Sofia's own voice ("…sono Sofia…")
   const nat = window.VOBridge && VOBridge.pauseWake; if (nat) VOBridge.pauseWake(true);
-  try { return await sofiaSayInner(text, opts); } finally { if (nat && !musicActive) VOBridge.pauseWake(false); }
+  try { return await sofiaSayInner(text, opts); } finally { if (nat && !micHeld()) VOBridge.pauseWake(false); }
 }
 async function sofiaSayInner(text, { present = null, gesture = null, clip = null } = {}) {
   if (!sofia) return;
@@ -1578,30 +1579,39 @@ function waitMeta(ms) {
     PRACTICE.waiter = (kind, text) => { clearTimeout(t); PRACTICE.waiter = null; res({ kind, text, at: Date.now() }); };
   });
 }
+// wait for a photo the glasses just took (imported into the gallery by Meta AI); resolves with a data URL or null
+function waitPhoto(since, ms) {
+  if (!(window.VOBridge && VOBridge.watchPhoto)) return sleep(ms).then(() => null);
+  return new Promise(res => { PHOTO.cb = url => res(url || null); VOBridge.watchPhoto(since, ms); PRACTICE.cancel = () => { PHOTO.cb = null; VOBridge.cancelPhoto && VOBridge.cancelPhoto(); res(null); }; });
+}
 // returns true when Sofia should go on to the next station
 async function stationPractice(i, fromTour) {
-  if (!(window.VOBridge && wake.on)) return false;           // no microphone: the visitor uses "Continua"
+  if (!window.VOBridge) return false;                         // web version: the visitor uses "Continua"
   const id = STATIONS[i].id, gen = current.tourGen;
   const alive = () => current.station === i && gen === current.tourGen;
-  const h = await waitMeta(45000);
-  listenUI(null);
-  if (!alive()) return false;
-  if (!h) {
-    if (id === 'tr') { await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false; await translatorPop(); return alive(); }
-    if (!fromTour) return false;
-    await sofiaSay('', { clip: 'noTry' }); return alive();
-  }
-  if (id === 'music' || h.kind === 'music') {
+  const pause = async sec => { for (let k = 0; k < sec && alive(); k++) await sleep(1000); return alive(); };
+  if (id === 'music') {                                       // «Hey Sofia, metti la musica» (the phone listens here)
+    if (!wake.on) return false;
+    const h = await waitMeta(45000);
+    if (!alive()) return false;
+    if (!h) { if (!fromTour) return false; await sofiaSay('', { clip: 'noTry' }); return alive(); }
     startMusicNow(); await sleep(900); if (!alive()) return false;
     await sofiaSay('', { clip: 'musicOn' });
-    for (let k = 0; k < 22 && alive(); k++) await sleep(1000);   // let the track play
-    stopMusic(); return alive();
+    await pause(22); stopMusic(); return alive();
   }
-  if (id === 'pov' || h.kind === 'photo') { await photoFromGlasses(h.at - 3000); return alive(); }
-  // the glasses are answering in the visitor's ears: give them time, without talking over them
-  for (let k = 0; k < 9 && alive(); k++) await sleep(1000);
-  if (!alive()) return false;
-  if (id === 'tr') { await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false; await translatorPop(); return alive(); }
+  if (id === 'pov') {                                         // «Hey Meta, scatta una foto» → the photo pops up here
+    const url = await waitPhoto(Date.now() - 3000, 45000);
+    if (!alive()) return false;
+    if (url) { const shown = showPhotoPop(null, { src: url }); sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); await shown; return alive(); }
+    await sofiaSay('', { clip: 'done1' }); return alive();
+  }
+  if (id === 'tr') {                                          // time to start the live translation, then write the phrase
+    if (!(await pause(14))) return false;
+    await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false;
+    await translatorPop(); return alive();
+  }
+  // the glasses hear «Hey Meta…» and answer in the visitor's ears: give them time, without talking over them
+  if (!(await pause(20))) return false;
   await sofiaSay('', { clip: ['done1', 'done2', 'done3'][doneK++ % 3] });
   return alive();
 }
@@ -2011,6 +2021,7 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   if (fromTour) closeTry();
   const s = STATIONS[i];
   if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic();
+  setStationQuiet(STATIONS[i].id !== 'music');
   current.station = i; voice.stop(); sofia.stopTalk();
   $('modes').hidden = true; $('sheet').hidden = false;
   $('shK').textContent = `STAZIONE ${String(i + 1).padStart(2, '0')} / 06 · ${s.sub.toUpperCase()}`;
@@ -2051,7 +2062,7 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   return r !== false && current.station === i;
 }
 async function backToShowroom() {
-  if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic();
+  if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic(); setStationQuiet(false);
   current.tourGen++; current.station = null; current.mode = 'free'; voice.stop(); sofia.stopTalk(); showSub(null);
   $('sheet').hidden = true; $('modes').hidden = false; $('btnFree').setAttribute('aria-pressed', 'true');
   controls.minDistance = 2.2; controls.maxDistance = 11;
@@ -2079,6 +2090,7 @@ async function runTour() {
   if (gen !== current.tourGen) return;
   glassesSpin = 0.35; sofia.gesture('cheer');
   current.mode = 'free'; $('modes').hidden = false; $('btnFree').setAttribute('aria-pressed', 'true');
+  setStationQuiet(false);
 }
 
 // --- cinematic intro (~20s), skippable
