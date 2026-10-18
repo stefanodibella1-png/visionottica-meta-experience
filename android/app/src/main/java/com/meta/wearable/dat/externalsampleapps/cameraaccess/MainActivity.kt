@@ -119,6 +119,8 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    com.meta.wearable.dat.externalsampleapps.cameraaccess.experience.CrashLog.install(this)
+    com.meta.wearable.dat.externalsampleapps.cameraaccess.experience.CrashLog.showIfAny(this)
     maybeStartMockDeviceTestServer()
     enableEdgeToEdge()
     setContent {
