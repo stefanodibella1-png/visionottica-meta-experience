@@ -18,6 +18,9 @@
 
     <!-- Sound-in-video recording -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- show in the app the photo just taken with the glasses (imported into the gallery by Meta AI) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- Foreground service + wake lock keep recording alive while backgrounded -->

@@ -126,13 +126,27 @@ class SofiaListener(
   private fun texts(b: Bundle?): List<String> =
       b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
 
-  private val metaMusic = Regex("\\bmeta\\b.*\\b(musica|music|canzone|brano|playlist)\\b")
+  private val metaWord = Regex("\\b(meta|metà|metta|mehta)\\b")
+  private val musicWord = Regex("\\b(musica|music|canzone|brano|playlist)\\b")
+
+  /** "Hey Meta, …" said by the visitor (the glasses answer it): tell the page what kind of command it was. */
+  private fun metaKind(t: String): String =
+      when {
+        musicWord.containsMatchIn(t) -> "music"
+        Regex("\\b(foto|fotografia|scatta)").containsMatchIn(t) -> "photo"
+        Regex("\\b(video|registra)").containsMatchIn(t) -> "video"
+        Regex("tradu").containsMatchIn(t) -> "translate"
+        else -> "other"
+      }
 
   private fun checkWake(b: Bundle?, isFinal: Boolean) {
     if (isFinal) {
-      val cmd = texts(b).map { it.lowercase() }.firstOrNull { metaMusic.containsMatchIn(it) }
-      if (cmd != null) {
-        js("window.voNative && voNative.onMetaCommand && voNative.onMetaCommand('music')")
+      val all = texts(b).map { it.lowercase() }
+      val meta = all.firstOrNull { metaWord.containsMatchIn(it) && !wakeRegex.containsMatchIn(it) }
+      val sofiaMusic = all.firstOrNull { wakeRegex.containsMatchIn(it) && musicWord.containsMatchIn(it) }
+      if (meta != null || sofiaMusic != null) {
+        val kind = if (sofiaMusic != null) "music" else metaKind(meta!!)
+        js("window.voNative && voNative.onMetaCommand && voNative.onMetaCommand('$kind', ${JSONObject.quote(meta ?: sofiaMusic!!)})")
         if (enabled && !paused) startSoon(400)
         return
       }

@@ -34,7 +34,13 @@
   "hm_ai": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: che tempo fa oggi?",
   "hm_pov": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: scatta una foto!",
   "hm_tr": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: avvia la traduzione in tempo reale.",
-  "hm_music": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: riproduci della musica.",
+  "hm_music": "Prova subito con gli occhiali. Di': Hey Sofia, metti la musica! La faccio partire io, e la senti negli occhiali.",
   "hm_call": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: chiama, e il nome di un tuo contatto.",
-  "hm_vision": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: guarda e dimmi cosa vedi."
+  "hm_vision": "Prova subito con gli occhiali. Di' Hey Meta, poi fermati un attimo, finché senti il segnale degli occhiali. Solo dopo, aggiungi: guarda e dimmi cosa vedi.",
+  "next": "Ottimo! Andiamo avanti.",
+  "noTry": "Nessun problema, potrai provarlo dopo. Andiamo avanti!",
+  "metaWait": "Ascolta la risposta negli occhiali.",
+  "photoIn": "Eccola! Ecco la foto che hai appena scattato. Quando hai finito, tocca Chiudi e andiamo avanti.",
+  "musicOn": "Ecco la tua musica! Senti come suona negli occhiali?",
+  "trWrite": "Ora scrivi una frase qui sotto e scegli la lingua. Io la dirò in quella lingua, e i tuoi occhiali te la tradurranno in italiano."
 }

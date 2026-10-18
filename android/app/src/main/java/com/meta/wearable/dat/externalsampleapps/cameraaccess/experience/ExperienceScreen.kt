@@ -86,8 +86,32 @@ class VOBridge(
     private val onWakeEnabled: (Boolean) -> Unit,
     private val listener: () -> SofiaListener?,
     private val js: (String) -> Unit,
+    private val context: android.content.Context,
+    private val requestPhotoPermission: ((Boolean) -> Unit) -> Unit,
 ) {
   private val main = Handler(Looper.getMainLooper())
+
+  // ---- photo taken with the glasses → shown in the app (via the gallery import of the Meta AI app)
+  @JavascriptInterface
+  fun watchPhoto(sinceMs: Double, timeoutMs: Double) {
+    main.post {
+      requestPhotoPermission { ok ->
+        if (!ok) {
+          js("window.voNative && voNative.onPhoto(null, 'denied')")
+          return@requestPhotoPermission
+        }
+        Thread {
+              val url = PhotoWatcher.waitForNewPhoto(context, sinceMs.toLong(), timeoutMs.toLong())
+              main.post {
+                js("window.voNative && voNative.onPhoto(${if (url == null) "null" else JSONObject.quote(url)}, ${if (url == null) "'timeout'" else "null"})")
+              }
+            }
+            .start()
+      }
+    }
+  }
+
+  @JavascriptInterface fun cancelPhoto() = PhotoWatcher.cancel()
 
   @JavascriptInterface fun connectGlasses() = main.post { onConnect() }.let {}
 
@@ -224,6 +248,13 @@ fun ExperienceScreen(
         fileCallback[0] = null
       }
 
+  val photoPermCb = remember { arrayOfNulls<(Boolean) -> Unit>(1) }
+  val photoPermLauncher =
+      rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        photoPermCb[0]?.invoke(granted)
+        photoPermCb[0] = null
+      }
+
   val webView = remember {
     // Serve bundled assets with explicit MIME types: ES modules are refused unless served as
     // JavaScript, and a refused module leaves the page stuck on the loading screen.
@@ -292,6 +323,19 @@ fun ExperienceScreen(
               },
               listener = { sofiaListener },
               js = runJs,
+              context = context,
+              requestPhotoPermission = { cb ->
+                val perm =
+                    if (android.os.Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_IMAGES
+                    else android.Manifest.permission.READ_EXTERNAL_STORAGE
+                if (androidx.core.content.ContextCompat.checkSelfPermission(context, perm) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    cb(true)
+                else {
+                  photoPermCb[0] = cb
+                  photoPermLauncher.launch(perm)
+                }
+              },
           ),
           "VOBridge",
       )

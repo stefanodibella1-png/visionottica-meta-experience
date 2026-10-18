@@ -185,6 +185,7 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .try-head h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:18px;letter-spacing:.08em;}
 .try-body{overflow:auto;display:flex;flex-direction:column;gap:12px;padding-block:10px;font-size:16px;line-height:1.45;}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+.tp-in{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0e1a2e;color:var(--ink);resize:vertical;}
 .try-body textarea,.try-body input[type=text],.try-body input[type=tel],.try-body select{resize:vertical;width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0e1a2e;color:var(--ink);}
 .try-body .row2{display:flex;gap:8px;align-items:stretch;} .try-body .row2 > input{flex:1;min-width:0;}
 .try-body .hint2{font-size:13.5px;color:var(--mist);margin:0;}
@@ -311,9 +312,22 @@ html.wv .modal-in{transform:translateZ(0);will-change:transform;}
 </div>
 <input type="file" id="pickPhoto" accept="image/*" capture="environment" hidden>
 <input type="file" id="pickAudio" accept="audio/*" hidden>
+<div class="modal" id="trPop" hidden role="dialog" aria-modal="true" aria-label="Traduttore">
+  <div class="modal-in">
+    <div class="fn-head"><span class="demo-chip"><span class="dot"></span>TRADUZIONE DAL VIVO</span><button class="x" id="tpClose" aria-label="Chiudi">✕</button></div>
+    <p class="note" style="margin:0">Scrivi una frase: Sofia la dirà nella lingua scelta e gli occhiali, con la traduzione attiva, te la ripetono in italiano.</p>
+    <div class="chips" id="tpL"></div>
+    <textarea id="tpIn" rows="2" class="tp-in" placeholder="Es. Buongiorno, vorrei provare gli occhiali da sole"></textarea>
+    <button class="pill primary" id="tpGo">🌐 Traduci</button>
+    <div class="big-out" id="tpOut"></div>
+    <div class="row2" id="tpAct" hidden><button class="pill primary" id="tpSay">🗣 Sofia la dice</button><button class="pill" id="tpSim">👓 Simula</button></div>
+    <button class="pill" id="tpDone">Chiudi e continua →</button>
+  </div>
+</div>
 <div class="modal" id="photoPop" hidden role="dialog" aria-modal="true" aria-label="Foto scattata">
   <div class="modal-in">
     <div class="fn-head"><span class="demo-chip"><span class="dot"></span>FOTO SCATTATA</span><button class="x" id="phClose" aria-label="Chiudi">✕</button></div>
+    <p class="note" id="phWait" hidden>📸 Foto scattata con gli occhiali! Arriva qui appena l'app Meta AI la importa…</p>
     <img id="phImg" alt="Foto scattata" style="width:100%;border-radius:14px;max-height:60vh;object-fit:contain;background:#000">
     <div class="row2"><button class="pill primary" id="phAn">✨ Analizzala con Vision AI</button><button class="pill" id="phOk">Chiudi</button></div>
   </div>
@@ -1434,10 +1448,16 @@ function progressSub(n) {
   const k = full.indexOf(' ', n); const cut = k < 0 ? full.length : k;
   said.textContent = full.slice(0, cut); rest.textContent = full.slice(cut);
 }
+// while music plays the speech recognizer stays off: its restarts steal audio focus and make the track stutter
+let musicActive = false;
+function setMusicActive(on) {
+  if (on === musicActive) return; musicActive = on;
+  if (window.VOBridge && VOBridge.pauseWake) VOBridge.pauseWake(on);
+}
 async function sofiaSay(text, opts = {}) {
   // never let the wake-word listener hear Sofia's own voice ("…sono Sofia…")
   const nat = window.VOBridge && VOBridge.pauseWake; if (nat) VOBridge.pauseWake(true);
-  try { return await sofiaSayInner(text, opts); } finally { if (nat) VOBridge.pauseWake(false); }
+  try { return await sofiaSayInner(text, opts); } finally { if (nat && !musicActive) VOBridge.pauseWake(false); }
 }
 async function sofiaSayInner(text, { present = null, gesture = null, clip = null } = {}) {
   if (!sofia) return;
@@ -1519,6 +1539,75 @@ function speakWait(text, lang) {
     setTimeout(res, 30000);
   });
 }
+// Translator popup used by the guided practice: returns when the visitor closes it
+function translatorPop() {
+  const L = [['en-US', 'Inglese'], ['fr-FR', 'Francese'], ['es-ES', 'Spagnolo'], ['de-DE', 'Tedesco']];
+  let to = 'en-US', last = null;
+  $('tpL').innerHTML = L.map(([c, n]) => `<button class="chip2" data-l="${c}" aria-pressed="${c === to}">${n}</button>`).join('');
+  $('tpIn').value = ''; $('tpOut').textContent = ''; $('tpAct').hidden = true; $('trPop').hidden = false;
+  setTimeout(() => $('tpIn').focus(), 300);
+  const go = async () => {
+    const q = $('tpIn').value.trim(); if (!q) { toast('Scrivi prima una frase.'); return; }
+    $('tpOut').textContent = 'Traduco…'; $('tpAct').hidden = true;
+    try {
+      const text = await translateText(q, to, st => { if (st === 'download') $('tpOut').textContent = 'Preparo la lingua (la prima volta serve internet)…'; });
+      last = { q, text, to, name: L.find(x => x[0] === to)[1] };
+      $('tpOut').textContent = text; $('tpAct').hidden = false; $('tpSay').textContent = '🗣 Sofia la dice in ' + last.name.toLowerCase();
+    } catch (e) { $('tpOut').textContent = 'Traduzione non riuscita: ' + (e.message || e); }
+  };
+  $('tpL').querySelectorAll('.chip2').forEach(b => b.onclick = () => { to = b.dataset.l; $('tpL').querySelectorAll('.chip2').forEach(x => x.setAttribute('aria-pressed', String(x === b))); if ($('tpIn').value.trim()) go(); });
+  $('tpGo').onclick = go;
+  const say = async sim => {
+    if (!last) return; $('tpSay').disabled = $('tpSim').disabled = true;
+    try {
+      showSub(last.text); sofia.startTalk('presentR'); await speakWait(last.text, last.to); sofia.stopTalk();
+      if (sim) { await sleep(300); showSub('👓 ' + last.q); await speakWait(last.q, 'it-IT'); }
+    } finally { $('tpSay').disabled = $('tpSim').disabled = false; }
+  };
+  $('tpSay').onclick = () => say(false);   // real: the glasses' live translation hears Sofia
+  $('tpSim').onclick = () => say(true);    // simulated: the app also plays the Italian
+  return new Promise(res => { $('tpClose').onclick = $('tpDone').onclick = () => { $('trPop').hidden = true; res(); }; });
+}
+
+// ---------- guided practice: wait for the visitor's "Hey Meta …" (heard by the phone), then move on by itself
+const PRACTICE = { waiter: null };
+function waitMeta(ms) {
+  return new Promise(res => {
+    const t = setTimeout(() => { PRACTICE.waiter = null; res(null); }, ms);
+    PRACTICE.cancel = () => { clearTimeout(t); PRACTICE.waiter = null; res(null); };
+    PRACTICE.waiter = (kind, text) => { clearTimeout(t); PRACTICE.waiter = null; res({ kind, text, at: Date.now() }); };
+  });
+}
+// returns true when Sofia should go on to the next station
+async function stationPractice(i, fromTour) {
+  if (!(window.VOBridge && wake.on)) return false;           // no microphone: the visitor uses "Continua"
+  const id = STATIONS[i].id, gen = current.tourGen;
+  const alive = () => current.station === i && gen === current.tourGen;
+  listenUI(id === 'music' ? '🎙 Di\' «Hey Sofia, metti la musica»' : '👓 Prova ora con gli occhiali…');
+  const h = await waitMeta(45000);
+  listenUI(null);
+  if (!alive()) return false;
+  if (!h) {
+    if (id === 'tr') { await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false; await translatorPop(); return alive(); }
+    if (!fromTour) return false;
+    await sofiaSay('', { clip: 'noTry' }); return alive();
+  }
+  if (id === 'music' || h.kind === 'music') {
+    startMusicNow(); await sleep(900); if (!alive()) return false;
+    await sofiaSay('', { clip: 'musicOn' });
+    for (let k = 0; k < 22 && alive(); k++) await sleep(1000);   // let the track play
+    stopMusic(); return alive();
+  }
+  if (id === 'pov' || h.kind === 'photo') { await photoFromGlasses(h.at - 3000); return alive(); }
+  // the glasses are answering in the visitor's ears: give them time, without talking over them
+  listenUI('👓 Ascolta la risposta negli occhiali…');
+  for (let k = 0; k < 9 && alive(); k++) await sleep(1000);
+  listenUI(null);
+  if (!alive()) return false;
+  if (id === 'tr') { await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false; await translatorPop(); return alive(); }
+  await sofiaSay('', { clip: ['done1', 'done2', 'done3'][doneK++ % 3] });
+  return alive();
+}
 function speakIn(text, lang) {
   if (window.VOBridge) { VOBridge.speak(text, lang); return; }
   if (!('speechSynthesis' in window)) return;
@@ -1528,12 +1617,33 @@ function speakIn(text, lang) {
   if (v) u.voice = v; speechSynthesis.speak(u);
 }
 // photos from the phone camera (file input with capture works in the artifact viewer)
-function showPhotoPop(f) {
-  $('phImg').src = URL.createObjectURL(f); $('photoPop').hidden = false;
-  const close = () => { $('photoPop').hidden = true; };
-  $('phClose').onclick = $('phOk').onclick = close;
-  $('phAn').onclick = () => { close(); closeTry(); openTry('vision'); focusStation(5, { quiet: true }); setTimeout(() => runVision(f), 300); };
+// returns a promise that resolves when the visitor closes the popup
+function showPhotoPop(f, { src = null, wait = false } = {}) {
+  $('phWait').hidden = !wait; $('phImg').hidden = wait; $('phAn').hidden = wait;
+  if (!wait) $('phImg').src = src || URL.createObjectURL(f);
+  $('photoPop').hidden = false;
+  return new Promise(res => {
+    const close = () => { $('photoPop').hidden = true; if (window.VOBridge && VOBridge.cancelPhoto) VOBridge.cancelPhoto(); PHOTO.close = null; res(); };
+    PHOTO.close = close;
+    $('phClose').onclick = $('phOk').onclick = close;
+    $('phAn').onclick = async () => { const blob = f || await (await fetch($('phImg').src)).blob(); close(); closeTry(); openTry('vision'); focusStation(5, { quiet: true }); setTimeout(() => runVision(blob), 300); };
+  });
 }
+const PHOTO = { cb: null, close: null };
+// "Hey Meta, scatta una foto": the glasses save it; Meta AI imports it into the gallery and we show it here
+function photoFromGlasses(since) {
+  const shown = showPhotoPop(null, { wait: true });
+  if (!(window.VOBridge && VOBridge.watchPhoto)) { $('phWait').textContent = '📸 Foto scattata! La trovi nell\'app Meta AI.'; return shown; }
+  $('phWait').textContent = '📸 Foto scattata con gli occhiali! Arriva qui appena l\'app Meta AI la importa…';
+  PHOTO.cb = (url, err) => {
+    if ($('photoPop').hidden) return;
+    if (url) { $('phWait').hidden = true; $('phImg').hidden = false; $('phAn').hidden = false; $('phImg').src = url; sofia.gesture('cheer'); sofiaSay('', { clip: 'photoIn' }); }
+    else $('phWait').textContent = err === 'denied' ? 'Per mostrarla qui serve il permesso alle foto. La trovi comunque nell\'app Meta AI.' : 'La foto è salvata sugli occhiali: la trovi nell\'app Meta AI (attiva l\'importazione automatica per vederla qui).';
+  };
+  VOBridge.watchPhoto(since, 90000);
+  return shown;
+}
+function startMusicNow() { voice.stop(); sofia && sofia.stopTalk(); if ($('try').hidden || !$('muPlay')) openTry('music'); setTimeout(() => playTrack(), 150); toast('🎵 Riproduco il tuo brano'); }
 function pickPhoto() {
   return new Promise(res => { const inp = $('pickPhoto'); inp.value = ''; inp.onchange = () => res(inp.files && inp.files[0] || null); inp.click(); });
 }
@@ -1596,7 +1706,7 @@ const META = {
   ai: ['«Hey Meta, che tempo fa oggi?»', '«Hey Meta, imposta un timer di 5 minuti»', '«Hey Meta, qual è il livello della batteria?»'],
   pov: ['«Hey Meta, scatta una foto»', '«Hey Meta, registra un video»', 'Premi il tasto di cattura sull\'asta'],
   tr: ['«Hey Meta, avvia la traduzione in tempo reale»', '«Hey Meta, come si dice \'dov\'è la stazione\' in inglese?»'],
-  music: ['«Hey Meta, riproduci della musica»', '«Hey Meta, alza il volume»', 'Scorri il dito sull\'asta per il volume'],
+  music: ['«Hey Sofia, metti la musica»', '«Hey Meta, alza il volume»', 'Scorri il dito sull\'asta per il volume'],
   call: ['«Hey Meta, chiama [nome contatto]»', '«Hey Meta, rispondi»', '«Hey Meta, invia un messaggio a [nome]»'],
   vision: ['«Hey Meta, guarda e dimmi cosa vedi»', '«Hey Meta, leggi questo testo»', '«Hey Meta, che cos\'è questo?»'],
 };
@@ -1778,7 +1888,7 @@ async function idbGet(k) { try { const d = await idb(); return await new Promise
 async function playTrack() {
   const t = musicTrack();
   if (t.type === 'yt' && t.id) {
-    stopMusic(); const yt = $('muYt');
+    stopMusic(); setMusicActive(true); const yt = $('muYt');
     if (yt) yt.innerHTML = `<iframe class="mu-frame" src="https://www.youtube-nocookie.com/embed/${t.id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="YouTube"></iframe><p class="hint2">Se il video non parte: <a href="https://www.youtube.com/watch?v=${t.id}" target="_blank" rel="noopener" style="color:var(--cyan)">apri su YouTube</a> (l'audio esce comunque dagli occhiali collegati).</p>`;
     return;
   }
@@ -1787,17 +1897,18 @@ async function playTrack() {
 }
 function stopMusic() {
   { const yt = $('muYt'); if (yt) yt.innerHTML = ''; }
+  setMusicActive(false);
   MUSIC.on = false; if (MU.timer) { clearInterval(MU.timer); MU.timer = null; }
   if (MU.el) { MU.el.pause(); MU.el = null; }
 }
 function playFile(f) {
-  muInit(); stopMusic(); MU.ctx.resume();
+  muInit(); stopMusic(); setMusicActive(true); MU.ctx.resume();
   const el = new Audio(URL.createObjectURL(f)); el.loop = true; MU.el = el;
   MU.ctx.createMediaElementSource(el).connect(MU.gain); el.play(); MUSIC.on = true;
   const n = $('muNow'); if (n) n.textContent = 'In riproduzione: ' + (f.name || 'il tuo brano');
 }
 function playDemo() {
-  muInit(); stopMusic(); MU.ctx.resume(); MUSIC.on = true;
+  muInit(); stopMusic(); setMusicActive(true); MU.ctx.resume(); MUSIC.on = true;
   const c = MU.ctx, bpm = 104, step = 60 / bpm / 2; let k = 0;
   const chords = [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65], [52, 55, 59, 64]];
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -1823,6 +1934,8 @@ const wake = { on: false, turns: [], retry: 0 };
 function listenUI(txt) { const el = $('listen'); if (!txt) { el.hidden = true; return; } $('listenTxt').textContent = txt; el.hidden = false; }
 async function onWakeWord() {
   if (!sofia) return;
+  // at the Music Studio "Hey Sofia, metti la musica" starts the track right away
+  if (PRACTICE.waiter && current.station !== null && STATIONS[current.station].id === 'music') { PRACTICE.waiter('music', 'hey sofia'); return; }
   voice.stop(); listenUI(null); sofia.smileT = 0.45; sofia.lookTarget = null;
   await sofiaSay('', { clip: 'wake', gesture: 'wave' });
   wake.retry = 0; listenUI('🎙 Ti ascolto…'); VOBridge.listenQuestion();
@@ -1833,6 +1946,7 @@ async function onHeardQuestion(q) {
     if (wake.retry++ < 1) { await sofiaSay('', { clip: 'again' }); listenUI('🎙 Ti ascolto…'); VOBridge.listenQuestion(); return; }
     VOBridge.resumeWake(); return;
   }
+  if (/\b(musica|canzone|brano|playlist)\b/i.test(q)) { window.voNative.onMetaCommand('music', q); return; }
   showSub('«' + q + '»'); sofia.play('listen', 0.4); listenUI('Sofia sta pensando…');
   try {
     const ans = await askSofia(q, wake.turns);
@@ -1862,7 +1976,12 @@ window.voNative = { st: null,
   onTranslate(id, text, err) { const p = NATIVE_TR.get(id); if (!p) return; NATIVE_TR.delete(id); err ? p.rej(new Error(err)) : p.res(text); },
   onTranslateStatus(id, st) { const p = NATIVE_TR.get(id); if (p && p.onStatus) p.onStatus(st); },
   // "Hey Meta, riproduci della musica" heard by the phone: play the chosen track (YouTube if set, else the demo)
-  onMetaCommand(cmd) { if (cmd !== 'music') return; voice.stop(); sofia && sofia.stopTalk(); if ($('try').hidden || !$('muPlay')) openTry('music'); setTimeout(() => playTrack(), 150); toast('🎵 Riproduco il tuo brano'); },
+  onMetaCommand(kind, text) {
+    if (PRACTICE.waiter) { PRACTICE.waiter(kind, text); return; }
+    if (kind === 'music') startMusicNow();
+    else if (kind === 'photo') photoFromGlasses(Date.now() - 3000);
+  },
+  onPhoto(url, err) { const cb = PHOTO.cb; PHOTO.cb = null; if (cb) cb(url, err); },
   onAnswer(id, text, err) { const p = NATIVE_ASK.get(id); if (!p) return; NATIVE_ASK.delete(id); err ? p.rej({ code: 'upstream_error' }) : p.res(text); },
   onStatus(st) {
   this.st = st;
@@ -1894,11 +2013,12 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   if (!fromTour) current.mode = 'free';
   if (fromTour) closeTry();
   const s = STATIONS[i];
+  if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic();
   current.station = i; voice.stop(); sofia.stopTalk();
   $('modes').hidden = true; $('sheet').hidden = false;
   $('shK').textContent = `STAZIONE ${String(i + 1).padStart(2, '0')} / 06 · ${s.sub.toUpperCase()}`;
   $('shT').textContent = s.name; $('shS').textContent = s.status;
-  const hmCmd = (META[s.id] || []).find(c => /Hey Meta/.test(c)); $('shM').hidden = !hmCmd; $('shM').classList.remove('live');
+  const hmCmd = (META[s.id] || []).find(c => /Hey (Meta|Sofia)/.test(c)); $('shM').querySelector('.hm-tip').hidden = !/Hey Meta/.test(hmCmd || ''); $('shM').hidden = !hmCmd; $('shM').classList.remove('live');
   if (hmCmd) $('shMt').innerHTML = fmtMeta(hmCmd);
   $('btnNext').textContent = i < 5 ? 'Continua →' : 'Fine ✓';
   controls.minDistance = 1.6; controls.maxDistance = 7;
@@ -1921,10 +2041,20 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   if (voice.clips && voice.clips['hm_' + s.id]) {
     $('shM').classList.add('live');
     r = await sofiaSay('', { clip: 'hm_' + s.id });
+    if (current.station !== i) return false;
+    const go = await stationPractice(i, fromTour);
+    if (go && current.station === i) {
+      closeTry();
+      if (fromTour) return true;                                   // runTour moves on
+      await sofiaSay('', { clip: 'next' });
+      if (current.station === i) { if (i < 5) focusStation(i + 1); else backToShowroom(); }
+      return true;
+    }
   }
   return r !== false && current.station === i;
 }
 async function backToShowroom() {
+  if (PRACTICE.cancel) PRACTICE.cancel(); listenUI(null); stopMusic();
   current.tourGen++; current.station = null; current.mode = 'free'; voice.stop(); sofia.stopTalk(); showSub(null);
   $('sheet').hidden = true; $('modes').hidden = false; $('btnFree').setAttribute('aria-pressed', 'true');
   controls.minDistance = 2.2; controls.maxDistance = 11;
