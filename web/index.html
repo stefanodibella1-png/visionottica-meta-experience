@@ -1583,7 +1583,6 @@ async function stationPractice(i, fromTour) {
   if (!(window.VOBridge && wake.on)) return false;           // no microphone: the visitor uses "Continua"
   const id = STATIONS[i].id, gen = current.tourGen;
   const alive = () => current.station === i && gen === current.tourGen;
-  listenUI(id === 'music' ? '🎙 Di\' «Hey Sofia, metti la musica»' : '👓 Prova ora con gli occhiali…');
   const h = await waitMeta(45000);
   listenUI(null);
   if (!alive()) return false;
@@ -1600,9 +1599,7 @@ async function stationPractice(i, fromTour) {
   }
   if (id === 'pov' || h.kind === 'photo') { await photoFromGlasses(h.at - 3000); return alive(); }
   // the glasses are answering in the visitor's ears: give them time, without talking over them
-  listenUI('👓 Ascolta la risposta negli occhiali…');
   for (let k = 0; k < 9 && alive(); k++) await sleep(1000);
-  listenUI(null);
   if (!alive()) return false;
   if (id === 'tr') { await sofiaSay('', { clip: 'trWrite' }); if (!alive()) return false; await translatorPop(); return alive(); }
   await sofiaSay('', { clip: ['done1', 'done2', 'done3'][doneK++ % 3] });
