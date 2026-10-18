@@ -111,6 +111,25 @@ class VOBridge(
 
   @JavascriptInterface fun pauseWake(p: Boolean) = main.post { listener()?.pause(p) }.let {}
 
+  // ---- Translator (ML Kit, on device)
+  @JavascriptInterface fun canTranslate(): Boolean = true
+
+  @JavascriptInterface
+  fun translate(id: Int, text: String, src: String, tgt: String) {
+    main.post {
+      SofiaTranslator.translate(
+          text,
+          src,
+          tgt,
+          onStatus = { st -> js("window.voNative && voNative.onTranslateStatus && voNative.onTranslateStatus($id, '$st')") },
+      ) { out, err ->
+        js(
+            "window.voNative && voNative.onTranslate($id, ${JSONObject.quote(out ?: "")}, ${JSONObject.quote(err ?: "")})"
+        )
+      }
+    }
+  }
+
   // ---- Sofia's Claude answers via the VisionOttica server
   @JavascriptInterface fun hasAi(): Boolean = SofiaBrain.isConfigured
 

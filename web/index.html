@@ -40,13 +40,16 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .chip{display:inline-flex;align-items:center;gap:8px;font-size:15px;padding:7px 12px !important;color:var(--mist);background:var(--glass);border:1px solid var(--line);
   padding:4px 9px;border-radius:999px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);white-space:nowrap;}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);}
-.tools{display:flex;gap:8px;}
+.tools{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.hs-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--cyan);background:rgba(95,227,255,.14);color:var(--ink);font:inherit;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.hs-pill[hidden]{display:none;}
+.hs-pill svg{width:16px;height:16px;stroke:var(--cyan);fill:none;stroke-width:2;stroke-linecap:round;}
+.hs-pill.hot{animation:hmPulse 1s ease-in-out infinite;}
 .ib{width:48px;height:48px;border-radius:12px;background:var(--glass);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
 .ib svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
 .ib[aria-pressed="true"]{border-color:var(--cyan);}
 .ib[aria-pressed="true"] svg{stroke:var(--cyan);}
-.wake-ind{border-color:var(--cyan);} .wake-ind svg{stroke:var(--cyan);} .wake-ind.hot{animation:hmPulse 1s ease-in-out infinite;}
 .brand .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 
 /* bottom */
@@ -127,6 +130,14 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .row-btn{display:flex;gap:10px;flex-wrap:wrap;}
 .q{margin:0;font-size:17px;font-weight:600;}
 .sheet .nav{display:flex;gap:8px;flex-wrap:nowrap;}
+.sheet{position:relative;}
+.sh-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.sh-home{flex:none;width:38px;height:34px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:18px;cursor:pointer;}
+.sheet .nav .pill{padding-inline:12px;font-size:16px;}
+#btnNext{flex:1;}
+.hm-cmd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;}
+.hm-cmd em{font-style:normal;font-size:12px;font-weight:600;letter-spacing:.06em;color:#021018;background:var(--warn);border-radius:999px;padding:2px 8px;}
+.hm-tip{font-size:13px;color:var(--mist);}
 .mu-set{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px;}
 .mu-set small{font-size:11px;letter-spacing:.14em;color:var(--mist);}
 .mu-frame{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;background:#000;}
@@ -173,7 +184,8 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .try-head{display:flex;justify-content:space-between;align-items:center;gap:10px;}
 .try-head h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:18px;letter-spacing:.08em;}
 .try-body{overflow:auto;display:flex;flex-direction:column;gap:12px;padding-block:10px;font-size:16px;line-height:1.45;}
-.try-body input[type=text],.try-body input[type=tel],.try-body select{width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0e1a2e;color:var(--ink);}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+.try-body textarea,.try-body input[type=text],.try-body input[type=tel],.try-body select{resize:vertical;width:100%;box-sizing:border-box;font:inherit;font-size:17px;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0e1a2e;color:var(--ink);}
 .try-body .row2{display:flex;gap:8px;align-items:stretch;} .try-body .row2 > input{flex:1;min-width:0;}
 .try-body .hint2{font-size:13.5px;color:var(--mist);margin:0;}
 .try-body img{max-width:100%;border-radius:14px;display:block;}
@@ -209,13 +221,13 @@ html.wv .modal-in{transform:translateZ(0);will-change:transform;}
       <button class="chip chip-btn" id="devChip" aria-label="Collega gli occhiali"><span class="dot" id="devDot"></span><span id="devTxt">Collega occhiali</span></button>
     </div>
     <div class="tools">
-      <span class="ib wake-ind" id="wakeInd" hidden title="«Ehi Sofia» in ascolto"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
       <button class="ib" id="btnMenu" aria-label="Menu" aria-expanded="false" title="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <button class="hs-pill" id="wakeInd" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>«Hey Sofia»</button>
     </div>
   </div>
 
   <div class="menu" id="menu" hidden>
-    <button class="mrow" id="btnWake" aria-pressed="false" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>«Ehi Sofia»</span><i id="wakeLbl">SPENTO</i></button>
+    <button class="mrow" id="btnWake" aria-pressed="false" hidden><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>«Hey Sofia»</span><i id="wakeLbl">SPENTO</i></button>
     <button class="mrow" id="btnStop"><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg><span>Interrompi la voce</span></button>
     <button class="mrow" id="btnCC" aria-pressed="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.4 2.4 0 1 0 0 3.6M17 10.2a2.4 2.4 0 1 0 0 3.6"/></svg><span>Sottotitoli</span><i id="ccLbl">ACCESI</i></button>
     <button class="mrow" id="btnSet" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Grafica e altre opzioni</span></button>
@@ -240,14 +252,13 @@ html.wv .modal-in{transform:translateZ(0);will-change:transform;}
   <div class="bottom">
     <div class="sub" id="sub" hidden><small>SOFIA</small><p id="subTxt"></p></div>
     <div class="sheet" id="sheet" hidden>
-      <span class="k" id="shK"></span>
-      <div class="hm" id="shM" hidden><small>👓 DI' AGLI OCCHIALI</small><b id="shMt"></b></div>
+      <div class="sh-top"><span class="k" id="shK"></span><button class="sh-home" id="btnBack" aria-label="Torna allo showroom">⌂</button></div>
+      <div class="hm" id="shM" hidden><small>👓 DI' AGLI OCCHIALI</small><b id="shMt" class="hm-cmd"></b><span class="hm-tip">Dopo «Hey Meta» fai una pausa: aspetta il segnale degli occhiali, poi il comando.</span></div>
       <h2 id="shT"></h2>
       <span id="shS" hidden></span>
       <div class="row nav">
         <button class="pill primary" id="btnTry">▶ Prova ancora</button>
-        <button class="pill sq" id="btnBack" aria-label="Torna allo showroom">⌂</button>
-        <button class="pill sq" id="btnNext" aria-label="Prossima stazione">→</button>
+        <button class="pill" id="btnNext" aria-label="Prossima stazione">Continua →</button>
       </div>
     </div>
     <div class="modes" id="modes" hidden>
@@ -300,6 +311,13 @@ html.wv .modal-in{transform:translateZ(0);will-change:transform;}
 </div>
 <input type="file" id="pickPhoto" accept="image/*" capture="environment" hidden>
 <input type="file" id="pickAudio" accept="audio/*" hidden>
+<div class="modal" id="photoPop" hidden role="dialog" aria-modal="true" aria-label="Foto scattata">
+  <div class="modal-in">
+    <div class="fn-head"><span class="demo-chip"><span class="dot"></span>FOTO SCATTATA</span><button class="x" id="phClose" aria-label="Chiudi">✕</button></div>
+    <img id="phImg" alt="Foto scattata" style="width:100%;border-radius:14px;max-height:60vh;object-fit:contain;background:#000">
+    <div class="row2"><button class="pill primary" id="phAn">✨ Analizzala con Vision AI</button><button class="pill" id="phOk">Chiudi</button></div>
+  </div>
+</div>
 <div class="modal" id="connect" hidden role="dialog" aria-modal="true" aria-labelledby="cnT">
   <div class="modal-in">
     <h2 id="cnT">Collega i Ray-Ban Meta</h2>
@@ -1481,6 +1499,26 @@ function closeTry() { $('try').hidden = true; $('tyBody').innerHTML = ''; stopMu
 
 // Sofia speaks a dynamic answer (device voice — pre-recorded neural voice only exists for fixed lines)
 async function sofiaReply(text) { if (!text) return; return sofiaSay(text.replace(/[*#_`]/g, ''), {}); }
+// translation: on-device ML Kit in the Android app (free), Claude in the web version
+const NATIVE_TR = new Map(); let trSeq = 0;
+function translateText(q, to, onStatus) {
+  if (window.VOBridge && VOBridge.translate) return new Promise((res, rej) => { const id = ++trSeq; NATIVE_TR.set(id, { res, rej, onStatus }); VOBridge.translate(id, q, 'it-IT', to); });
+  if (sampleFn) { const name = { 'en-US': 'inglese', 'fr-FR': 'francese', 'es-ES': 'spagnolo', 'de-DE': 'tedesco', 'zh-CN': 'cinese', 'ja-JP': 'giapponese' }[to] || to;
+    return sampleFn(`Traduci il testo seguente in ${name}. Rispondi solo con la traduzione, senza virgolette né commenti.\n\nTesto:\n${q}`, { modelTier: 'quick' }).then(r => r.text.trim()); }
+  return Promise.reject(new Error('traduttore non disponibile qui'));
+}
+// speak and resolve when finished (Android native TTS, or the browser's speech synthesis)
+function speakWait(text, lang) {
+  return new Promise(res => {
+    if (window.VOBridge) {
+      if (!VOBridge.speak(text, lang)) { res(); return; }
+      const t0 = Date.now(); const iv = setInterval(() => { if ((Date.now() - t0 > 600 && !VOBridge.isSpeaking()) || Date.now() - t0 > 30000) { clearInterval(iv); res(); } }, 150); return;
+    }
+    if (!('speechSynthesis' in window)) { res(); return; }
+    const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.onend = u.onerror = () => res(); speechSynthesis.cancel(); speechSynthesis.speak(u);
+    setTimeout(res, 30000);
+  });
+}
 function speakIn(text, lang) {
   if (window.VOBridge) { VOBridge.speak(text, lang); return; }
   if (!('speechSynthesis' in window)) return;
@@ -1490,6 +1528,12 @@ function speakIn(text, lang) {
   if (v) u.voice = v; speechSynthesis.speak(u);
 }
 // photos from the phone camera (file input with capture works in the artifact viewer)
+function showPhotoPop(f) {
+  $('phImg').src = URL.createObjectURL(f); $('photoPop').hidden = false;
+  const close = () => { $('photoPop').hidden = true; };
+  $('phClose').onclick = $('phOk').onclick = close;
+  $('phAn').onclick = () => { close(); closeTry(); openTry('vision'); focusStation(5, { quiet: true }); setTimeout(() => runVision(f), 300); };
+}
 function pickPhoto() {
   return new Promise(res => { const inp = $('pickPhoto'); inp.value = ''; inp.onchange = () => res(inp.files && inp.files[0] || null); inp.click(); });
 }
@@ -1557,10 +1601,16 @@ const META = {
   vision: ['«Hey Meta, guarda e dimmi cosa vedi»', '«Hey Meta, leggi questo testo»', '«Hey Meta, che cos\'è questo?»'],
 };
 let doneK = 0;
+// «Hey Meta, comando» → «Hey Meta» [pausa] «comando»: the glasses need a beat after the wake word
+function fmtMeta(c) {
+  const m = String(c).replace(/[«»]/g, '').match(/^Hey Meta,\s*(.+)$/i);
+  return m ? `<span>«Hey Meta»</span><em>⏸ pausa</em><span>«${esc(m[1])}»</span>` : esc(c);
+}
 function metaSection(id) {
   const box = document.createElement('div'); box.className = 'meta-try';
   box.innerHTML = `<div class="mt-h">👓 PROVA CON GLI OCCHIALI</div>
-    ${META[id].map(c => `<div class="mt-cmd">${esc(c)}</div>`).join('')}
+    ${META[id].map(c => `<div class="mt-cmd hm-cmd">${fmtMeta(c)}</div>`).join('')}
+    <p class="hint2">Dopo «Hey Meta» aspetta il segnale degli occhiali, poi di' il comando.</p>
     <div class="row2"><button class="pill primary" data-done>✓ Fatto!</button><button class="pill" data-ask>💬 Chiedi a Sofia</button></div>
     <p class="hint2">Comandi di Meta AI sugli occhiali veri. La disponibilità può variare per paese, lingua e versione del software.</p>`;
   box.querySelector('[data-done]').onclick = () => { const c = ['done1', 'done2', 'done3'][doneK++ % 3]; sofia.gesture('cheer'); sofiaSay('', { clip: c }); };
@@ -1603,32 +1653,44 @@ const PANELS = {
       const f = await pickPhoto(); if (!f) return; lastPhoto = f; startScan();
       showPhotoInScene(f, 1);
       $('povOut').innerHTML = `<img alt="Foto scattata" src="${URL.createObjectURL(f)}"><div class="row2" style="margin-top:10px"><button class="pill primary" id="povAn">✨ Analizzala con Vision AI</button></div>`;
+      showPhotoPop(f);
       sofia.gesture('wave'); sofiaReply('Bellissima! Vuoi che ti dica cosa vedo in questa foto?');
       $('povAn').onclick = () => { closeTry(); openTry('vision'); focusStation(5, { quiet: true }); setTimeout(() => runVision(lastPhoto), 300); };
     };
   },
   tr(body) {
     $('tyT').textContent = 'TRADUTTORE';
-    const L = [['en-US', 'Inglese'], ['fr-FR', 'Francese'], ['es-ES', 'Spagnolo'], ['de-DE', 'Tedesco'], ['zh-CN', 'Cinese'], ['it-IT', 'Italiano']];
-    let to = 'en-US';
-    body.innerHTML = `<div class="chips" id="trL">${L.map(([c, n]) => `<button class="chip2" data-l="${c}" aria-pressed="${c === to}">${n}</button>`).join('')}</div>
-      <div class="row2"><input type="text" id="trIn" placeholder="Scrivi o detta una frase…" enterkeyhint="go" autocomplete="off"><button class="pill primary" id="trGo">Traduci</button></div>
+    const L = [['en-US', 'Inglese'], ['fr-FR', 'Francese'], ['es-ES', 'Spagnolo'], ['de-DE', 'Tedesco'], ['zh-CN', 'Cinese'], ['ja-JP', 'Giapponese']];
+    let to = 'en-US', last = null;
+    body.innerHTML = `<p>Scrivi una frase in italiano e scegli la lingua.</p>
+      <div class="chips" id="trL">${L.map(([c, n]) => `<button class="chip2" data-l="${c}" aria-pressed="${c === to}">${n}</button>`).join('')}</div>
+      <textarea id="trIn" rows="2" placeholder="Es. Buongiorno, vorrei provare gli occhiali da sole" autocomplete="off"></textarea>
+      <button class="pill primary" id="trGo">🌐 Traduci</button>
       <div class="big-out" id="trOut"></div>
-      <button class="pill" id="trSay" hidden>🔊 Ascolta</button>
-      <p class="hint2">Traduce qualsiasi lingua in quella scelta e la pronuncia. La traduzione vocale continua (ascolto senza pulsanti) richiede il microfono degli occhiali: arriva con l'app Android.</p>`;
-    body.querySelectorAll('#trL .chip2').forEach(b => b.onclick = () => { to = b.dataset.l; body.querySelectorAll('#trL .chip2').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+      <div class="row2" id="trAct" hidden><button class="pill" id="trSay">🔊 Ascolta</button><button class="pill primary" id="trSim">👓 Simula la conversazione</button></div>
+      <div class="bubble" id="trSimBox" hidden></div>
+      <p class="hint2">Simulazione: Sofia parla nella lingua straniera e tu, con gli occhiali, la senti tradotta in italiano in tempo reale — come la traduzione dal vivo dei Ray-Ban Meta.</p>`;
+    body.querySelectorAll('#trL .chip2').forEach(b => b.onclick = () => { to = b.dataset.l; body.querySelectorAll('#trL .chip2').forEach(x => x.setAttribute('aria-pressed', String(x === b))); if ($('trIn').value.trim()) go(); });
     const go = async () => {
-      const q = $('trIn').value.trim(); if (!q) return;
-      if (!sampleFn) { toast("L'AI non è disponibile in questa visualizzazione."); return; }
-      const name = L.find(x => x[0] === to)[1];
-      $('trOut').textContent = 'Traduco…'; $('trSay').hidden = true;
+      const q = $('trIn').value.trim(); if (!q) { toast('Scrivi prima una frase.'); return; }
+      $('trOut').textContent = 'Traduco…'; $('trAct').hidden = true; $('trSimBox').hidden = true;
       try {
-        const { text } = await sampleFn(`Traduci il testo seguente in ${name}. Rispondi solo con la traduzione, senza virgolette né commenti.\n\nTesto:\n${q}`, { modelTier: 'quick', onText: ({ text }) => { $('trOut').textContent = text; } });
-        $('trOut').textContent = text; $('trSay').hidden = false; $('trSay').onclick = () => speakIn(text, to); speakIn(text, to);
-        sofia.smileT = 0.4; sofia.gesture('presentR');
-      } catch (e) { $('trOut').textContent = aiErr(e); }
+        const text = await translateText(q, to, st => { if (st === 'download') $('trOut').textContent = 'Preparo la lingua (solo la prima volta serve internet)…'; });
+        last = { q, text, to, name: L.find(x => x[0] === to)[1] };
+        $('trOut').textContent = text; $('trAct').hidden = false; sofia.smileT = 0.4; sofia.gesture('presentR');
+      } catch (e) { $('trOut').textContent = 'Traduzione non riuscita: ' + (e.message || e); }
     };
-    $('trGo').onclick = go; $('trIn').onkeydown = e => { if (e.key === 'Enter') go(); };
+    $('trGo').onclick = go;
+    $('trSay').onclick = () => last && speakWait(last.text, last.to);
+    $('trSim').onclick = async () => {
+      if (!last) return; const box = $('trSimBox'); box.hidden = false; $('trSim').disabled = true;
+      try {
+        box.innerHTML = `<b>Sofia (in ${esc(last.name.toLowerCase())}):</b><br>«${esc(last.text)}»`;
+        showSub(last.text); sofia.startTalk('presentR'); await speakWait(last.text, last.to); sofia.stopTalk();
+        box.innerHTML += `<br><br><b>👓 Negli occhiali senti, in italiano:</b><br>«${esc(last.q)}»`;
+        await sleep(250); showSub('👓 ' + last.q); await speakWait(last.q, 'it-IT');
+      } finally { $('trSim').disabled = false; }
+    };
   },
   music(body) {
     $('tyT').textContent = 'MUSICA';
@@ -1689,12 +1751,12 @@ async function runVision(file) {
 function openTry(id) {
   const body = $('tyBody'); stopMusic(); body.innerHTML = '';
   PANELS[id] && PANELS[id](body);
-  if (id !== 'ai' && id !== 'music' && META[id]) {
+  if (!['ai', 'music', 'tr', 'pov'].includes(id) && META[id]) {
     const extra = document.createElement('details'); extra.className = 'extra';
     extra.innerHTML = '<summary>Altre prove nell\'app</summary>';
     while (body.firstChild) extra.appendChild(body.firstChild);
     body.append(metaSection(id), extra);
-  } else if (id === 'ai' || id === 'music') body.prepend(metaSection(id));
+  } else if (META[id]) body.prepend(metaSection(id));
   $('try').hidden = false;
 }
 
@@ -1782,20 +1844,25 @@ async function onHeardQuestion(q) {
 }
 function setWake(on, quiet) {
   wake.on = on; $('btnWake').setAttribute('aria-pressed', String(on)); $('wakeLbl').textContent = on ? 'ACCESO' : 'SPENTO';
-  $('wakeInd').hidden = !on; store('vo_wake', on ? '1' : '0');
+  $('wakeInd').hidden = false; $('wakeInd').style.opacity = on ? '1' : '.6'; store('vo_wake', on ? '1' : '0');
   if (window.VOBridge && VOBridge.setWakeEnabled) VOBridge.setWakeEnabled(on);
-  if (!quiet) toast(on ? 'Di\' «Ehi Sofia» e falle una domanda.' : '«Ehi Sofia» disattivato.');
+  if (!quiet) toast(on ? 'Di\' «Hey Sofia» e falle una domanda.' : '«Hey Sofia» disattivato.');
 }
 if (window.VOBridge && VOBridge.setWakeEnabled) {
-  $('btnWake').hidden = false;
+  $('btnWake').hidden = false; $('wakeInd').hidden = false;
   $('btnWake').addEventListener('click', () => setWake(!wake.on));
-  $('wakeInd').addEventListener('click', () => toast('Sofia ti ascolta: di\' «Ehi Sofia». Per spegnerla: ⚙ → «Ehi Sofia».'));
+  // tap = same as saying it: Sofia greets you and listens to your question
+  $('wakeInd').addEventListener('click', () => { if (!wake.on) setWake(true, true); onWakeWord(); });
 }
 // Android app: live DAT state pushed by the native layer (Meta Wearables Device Access Toolkit)
 window.voNative = { st: null,
   onWake() { onWakeWord(); },
   onHeard(text) { onHeardQuestion(text); },
   onListen(state) { if (state === 'denied' || state === 'unavailable') { setWake(false, true); toast(state === 'denied' ? 'Serve il permesso del microfono per «Ehi Sofia».' : 'Riconoscimento vocale non disponibile su questo telefono.'); } $('wakeInd').classList.toggle('hot', state === 'question'); },
+  onTranslate(id, text, err) { const p = NATIVE_TR.get(id); if (!p) return; NATIVE_TR.delete(id); err ? p.rej(new Error(err)) : p.res(text); },
+  onTranslateStatus(id, st) { const p = NATIVE_TR.get(id); if (p && p.onStatus) p.onStatus(st); },
+  // "Hey Meta, riproduci della musica" heard by the phone: play the chosen track (YouTube if set, else the demo)
+  onMetaCommand(cmd) { if (cmd !== 'music') return; voice.stop(); sofia && sofia.stopTalk(); if ($('try').hidden || !$('muPlay')) openTry('music'); setTimeout(() => playTrack(), 150); toast('🎵 Riproduco il tuo brano'); },
   onAnswer(id, text, err) { const p = NATIVE_ASK.get(id); if (!p) return; NATIVE_ASK.delete(id); err ? p.rej({ code: 'upstream_error' }) : p.res(text); },
   onStatus(st) {
   this.st = st;
@@ -1832,8 +1899,8 @@ async function focusStation(i, { fromTour = false, quiet = false } = {}) {
   $('shK').textContent = `STAZIONE ${String(i + 1).padStart(2, '0')} / 06 · ${s.sub.toUpperCase()}`;
   $('shT').textContent = s.name; $('shS').textContent = s.status;
   const hmCmd = (META[s.id] || []).find(c => /Hey Meta/.test(c)); $('shM').hidden = !hmCmd; $('shM').classList.remove('live');
-  if (hmCmd) $('shMt').textContent = hmCmd;
-  $('btnNext').textContent = i < 5 ? '→' : '✓';
+  if (hmCmd) $('shMt').innerHTML = fmtMeta(hmCmd);
+  $('btnNext').textContent = i < 5 ? 'Continua →' : 'Fine ✓';
   controls.minDistance = 1.6; controls.maxDistance = 7;
   const fly = director.flyTo(s.camPos, s.camTarget, 2.4);
   const walk = sofiaWalk(s.stand);
@@ -1938,7 +2005,6 @@ function finishIntro() {
   sofia.root.visible = true; sofia.walking = false; sofia.path = null; sofia.root.position.copy(HOME);
   sofia.yaw = Math.atan2(camera.position.x - HOME.x, camera.position.z - HOME.z); sofia.targetYaw = null; sofia.play('idle', 0.3);
   current.busy = false; controls.enabled = true; setShot(HOME_CAM, HOME_TARGET, 1); $('modes').hidden = false;
-  if (window.VOBridge && VOBridge.setWakeEnabled && !wake.on && store('vo_wake') !== '0') setTimeout(() => setWake(true, true), 6000);
   if (!current.introDone) { current.introDone = true; sofia.smileT = 0.4; sofia.gesture('wave'); setTimeout(() => sofiaSay("Ciao, sono Sofia. Tocca una stazione e ti mostro cosa possono fare gli occhiali.", { clip: 'greet' }), 700); }
 }
 
@@ -2046,6 +2112,7 @@ async function boot() {
   window.__sim = SIM; window.__done = "ready";
 }
 $('btnEnter').addEventListener('click', () => {
+  if (window.VOBridge && VOBridge.setWakeEnabled && !wake.on && store('vo_wake') !== '0') setTimeout(() => setWake(true, true), 400);
   voice.unlock(); voice.unlockAudio();
   try { navigator.wakeLock?.request('screen').catch(() => {}); } catch {}
   $('gate').style.opacity = 0; setTimeout(() => $('gate').hidden = true, 800);

@@ -86,6 +86,8 @@ dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.exifinterface)
   implementation(libs.androidx.webkit)
+  // Free on-device translation for the Translator station (models downloaded once per language)
+  implementation("com.google.mlkit:translate:17.0.3")
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
   implementation(libs.androidx.material.icons.extended)

@@ -126,7 +126,17 @@ class SofiaListener(
   private fun texts(b: Bundle?): List<String> =
       b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
 
+  private val metaMusic = Regex("\\bmeta\\b.*\\b(musica|music|canzone|brano|playlist)\\b")
+
   private fun checkWake(b: Bundle?, isFinal: Boolean) {
+    if (isFinal) {
+      val cmd = texts(b).map { it.lowercase() }.firstOrNull { metaMusic.containsMatchIn(it) }
+      if (cmd != null) {
+        js("window.voNative && voNative.onMetaCommand && voNative.onMetaCommand('music')")
+        if (enabled && !paused) startSoon(400)
+        return
+      }
+    }
     val hit = texts(b).map { it.lowercase() }.firstOrNull { wakeRegex.containsMatchIn(it) }
     if (hit != null) {
       mode = Mode.IDLE
