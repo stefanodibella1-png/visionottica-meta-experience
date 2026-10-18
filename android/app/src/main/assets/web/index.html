@@ -111,8 +111,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
 .skip{position:fixed;z-index:18;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);}
 .chip-btn{cursor:pointer;color:var(--ink);}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok);}
-.modal{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(2,5,10,.72);padding-inline:max(16px,env(safe-area-inset-left,0px));}
-.modal-in{width:min(460px,100%);box-sizing:border-box;background:#0b1424;border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px;max-height:88vh;overflow:auto;}
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;box-sizing:border-box;background:rgba(2,5,10,.72);padding:max(12px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));}
+.modal[hidden]{display:none;}
+.modal-in{width:min(460px,100%);box-sizing:border-box;background:#0b1424;border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:14px;max-height:100%;flex:0 1 auto;min-height:0;overflow:auto;}
 .modal h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:20px;letter-spacing:.06em;text-wrap:balance;}
 .modal .note{font-size:15px;color:var(--mist);}
 .modal b{color:var(--ink);font-weight:600;}
