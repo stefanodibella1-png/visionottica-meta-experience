@@ -46,10 +46,14 @@ fun AppRoot(
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   var screen by rememberSaveable { mutableStateOf("experience") }
   val scope = androidx.compose.runtime.rememberCoroutineScope()
-  val cameraViewModel: CameraViewModel =
-      androidx.lifecycle.viewmodel.compose.viewModel(
-          factory = CameraViewModel.Factory(application = activity.application, wearablesViewModel = viewModel),
-      )
+  // Created only when a glasses photo is requested: building it at launch (before the Meta SDK is
+  // initialised) crashed the app. Same activity-scoped instance the glasses screen uses.
+  val cameraViewModel: () -> CameraViewModel = {
+    androidx.lifecycle.ViewModelProvider(
+        activity as androidx.activity.ComponentActivity,
+        CameraViewModel.Factory(application = activity.application, wearablesViewModel = viewModel),
+    )[CameraViewModel::class.java]
+  }
 
   BackHandler(enabled = screen != "experience") { screen = "experience" }
 
@@ -69,7 +73,7 @@ fun AppRoot(
         onRequestRecordAudioPermission = onRequestRecordAudioPermission,
         takeGlassesPhoto = { done ->
           if (!uiState.isRegistered) done(null)
-          else scope.launch { done(runCatching { GlassesShot.take(cameraViewModel, onRequestWearablesPermission) }.getOrNull()) }
+          else scope.launch { done(runCatching { GlassesShot.take(cameraViewModel(), onRequestWearablesPermission) }.getOrNull()) }
         },
     )
   } else {
